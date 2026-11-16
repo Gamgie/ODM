@@ -5,5 +5,5 @@ window.ODM_CONFIG = {
   supabase_key: "sb_publishable_tLvG7iauPnHR8HihhNpecw_ROd2svon", // clé « publishable » (ou « anon public »), JAMAIS la clé secrète / service_role
   // Identifiant (UUID) de l'utilisateur affiché aux visiteurs non connectés.
   // Supabase → Authentication → Users → copier « User UID ».
-  utilisateur_public: "0e378e24-25a8-409e-bcd4-ec1f94abac6f"
+  utilisateur_public: "d1468d76-cd6b-4c6b-ac91-d2c3416caff5"
 };
