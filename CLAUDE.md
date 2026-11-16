@@ -7,7 +7,7 @@ Site statique (`index.html`, GitHub Pages depuis `main`) relié à Supabase. Voi
 - À chaque modification du site : incrémenter `VERSION` dans `index.html` **et** `version.json` (les téléphones gardent la page en cache ; la page se recharge seule quand `version.json` annonce plus récent).
 - Toute évolution de la base passe par `supabase/schema.sql`, qui doit rester relançable sans erreur (`if not exists`, `drop policy if exists`, `create or replace`).
 - Sécurité : lecture publique, écriture limitée à `auth.uid()` par les règles RLS. Ne jamais mettre la clé `service_role` dans le dépôt. `config.js` ne contient que des valeurs publiques.
-- Le collecteur (`collecteur/claude_usage.py`) écrit via la fonction `ajouter_releve_claude` et une clé par utilisateur ; `collecteur/config.json` n'est jamais commité.
+- Le collecteur (`collecteur/claude_usage.py`, installé sous Windows par `collecteur/installer.ps1`) écrit via la fonction `ajouter_releve_claude` avec une clé **par appareil** (`cles_collecteur`) ; un relevé à moins de 10 min d'un autre est ignoré. `config.json` n'est jamais commité.
 
 ## Modèle de données (`releves`)
 | categorie | valeur | autres champs |

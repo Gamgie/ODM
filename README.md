@@ -39,7 +39,8 @@ La fonction n'accepte que les comptes connectés. Coût indicatif : environ 1 ce
 Mettre ces trois valeurs dans `config.js` (elles ne sont pas secrètes), puis activer GitHub Pages : Settings → Pages → *Deploy from a branch* → `main` / `(root)`.
 
 ### 4. Le collecteur Claude (Windows)
-Sur le site, connecté : **Mon compte → Installer sur Windows**, puis double-clic sur `installer-odm.cmd`.
+Sur le site, connecté : **Mon compte**, nom de l'ordinateur (ex. `desktop`, `laptop`) → **Installer sur Windows**, puis double-clic sur le fichier téléchargé, sur cet ordinateur.
+Une clé par appareil : les jauges sont celles du compte Claude (tous appareils confondus), plusieurs ordinateurs servent seulement à couvrir les moments où l'un est éteint. Un relevé arrivé moins de 10 min après un autre est ignoré.
 Le fichier lance `collecteur/installer.ps1`, qui :
 1. installe Python si besoin (winget) ;
 2. télécharge le collecteur dans `%LOCALAPPDATA%\ODM` avec sa configuration ;

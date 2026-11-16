@@ -89,12 +89,12 @@ def main():
     cfg = json.loads((ICI / "config.json").read_text(encoding="utf-8-sig"))
     url = cfg["supabase_url"].rstrip("/") + "/rest/v1/rpc/ajouter_releve_claude"
     try:
-        requete(url, {"apikey": cfg["supabase_key"], "Content-Type": "application/json"},
+        resultat = requete(url, {"apikey": cfg["supabase_key"], "Content-Type": "application/json"},
                 {"p_cle": cfg["cle_collecteur"], **releve})
     except urllib.error.HTTPError as e:
         log(f"ERREUR Supabase {e.code} : {e.read().decode()[:300]}")
         sys.exit(1)
-    log(f"OK 5h={releve['p_session_5h']} % semaine={releve['p_semaine']} %")
+    log(f"OK 5h={releve['p_session_5h']} % semaine={releve['p_semaine']} % ({resultat or 'enregistré'})")
 
 
 if __name__ == "__main__":

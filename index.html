@@ -134,8 +134,13 @@ footer{color:var(--mute);font-size:.82rem}
   <h3>Mon compte</h3>
   <p id="compte-mail" class="sub"></p>
   <p style="margin:0 0 6px"><b>Collecteur Claude (ordinateur Windows)</b></p>
-  <p class="sub" style="font-size:.85rem">Depuis l'ordinateur où tu utilises Claude : télécharge l'installateur et double-clique dessus. Il installe tout (Python, Claude Code, connexion) et relève tes jauges toutes les 30 minutes. Relançable pour mettre à jour.</p>
-  <button class="btn main" id="installer-btn" style="width:100%">⬇ Installer sur Windows</button>
+  <p class="sub" style="font-size:.85rem">Les jauges sont celles de ton compte Claude (tous appareils confondus). Installe le collecteur sur un ou plusieurs ordinateurs : quand l'un est éteint, un autre prend le relais.</p>
+  <table id="appareils" style="margin:0 0 10px"></table>
+  <form id="f-installer">
+    <label for="i-appareil" style="font-size:.85rem;color:var(--mute)">Nom de cet ordinateur</label>
+    <input id="i-appareil" type="text" placeholder="ex. desktop, laptop" maxlength="40" required autocomplete="off">
+    <button class="btn main" id="installer-btn" style="width:100%;margin-top:8px">⬇ Installer sur Windows</button>
+  </form>
   <p class="msg" id="installer-msg"></p>
   <details style="margin-top:10px;font-size:.85rem"><summary class="sub" style="cursor:pointer">Autre système (Mac, Linux) : clé seule</summary>
     <p class="sub" style="font-size:.85rem">À mettre dans <code>config.json</code> à côté de <code>claude_usage.py</code> (voir README).</p>
@@ -194,7 +199,7 @@ footer{color:var(--mute);font-size:.82rem}
 </dialog>
 
 <script>
-const VERSION = 7;
+const VERSION = 8;
 const CFG = window.ODM_CONFIG || {};
 // Mise à jour automatique : le téléphone garde la page en cache ; si version.json annonce plus récent, on recharge.
 document.getElementById("version").textContent = VERSION;
@@ -383,7 +388,7 @@ document.addEventListener("click", async e => {
 
 /* ---------- Dialogues ---------- */
 document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
-$("compte-btn").onclick = () => session ? ($("compte-mail").textContent = session.user.email, $("dlg-compte").showModal()) : $("dlg-login").showModal();
+$("compte-btn").onclick = () => session ? ($("compte-mail").textContent = session.user.email, $("dlg-compte").showModal(), listerAppareils()) : $("dlg-login").showModal();
 
 $("f-login").onsubmit = async e => {
   e.preventDefault(); $("login-msg").textContent = "…"; $("login-msg").className = "msg";
@@ -392,14 +397,34 @@ $("f-login").onsubmit = async e => {
   $("dlg-login").close(); $("l-pass").value = ""; $("login-msg").textContent = "";
 };
 $("logout").onclick = async () => { await sb.auth.signOut(); $("dlg-compte").close(); };
+// Appareils qui relèvent les jauges Claude (une clé par appareil).
+const ilYa = t => { if (!t) return "jamais"; const m = (Date.now() - Date.parse(t)) / 6e4; return m < 60 ? `il y a ${Math.round(m)} min` : m < 2880 ? `il y a ${Math.round(m / 60)} h` : `il y a ${Math.round(m / 1440)} j`; };
+async function listerAppareils() {
+  const {data, error} = await sb.rpc("mes_collecteurs");
+  if (error) { $("appareils").innerHTML = `<tr><td class="sub">${esc(error.message)}</td></tr>`; return []; }
+  $("appareils").innerHTML = data.length ? "<tr><th>Appareil</th><th>Dernier relevé</th><th></th></tr>" +
+    data.map(a => `<tr><td>${esc(a.appareil)}</td><td>${ilYa(a.dernier_releve)}</td><td><button class="del" data-appareil="${esc(a.appareil)}" title="Retirer">✕</button></td></tr>`).join("")
+    : '<tr><td class="sub">Aucun ordinateur pour l\'instant.</td></tr>';
+  return data;
+}
+$("appareils").addEventListener("click", async e => {
+  const b = e.target.closest("[data-appareil]"); if (!b) return;
+  if (!confirm(`Retirer « ${b.dataset.appareil} » ? Son collecteur n'enverra plus rien.`)) return;
+  await sb.rpc("supprimer_collecteur", {p_appareil: b.dataset.appareil}); listerAppareils();
+});
+
 // Installateur Windows : un .cmd qui contient la configuration et lance collecteur/installer.ps1.
-$("installer-btn").onclick = async () => {
-  if (!confirm("Une nouvelle clé de collecteur va être créée : un collecteur déjà installé sur un autre ordinateur s'arrêtera. Continuer ?")) return;
-  const {data: cle, error} = await sb.rpc("nouvelle_cle_collecteur");
+$("f-installer").onsubmit = async e => {
+  e.preventDefault();
+  const appareil = $("i-appareil").value.trim();
+  const existants = await listerAppareils();
+  if (existants.some(a => a.appareil === appareil) && !confirm(`« ${appareil} » existe déjà : sa clé sera remplacée (relance l'installateur sur cet ordinateur). Continuer ?`)) return;
+  const {data: cle, error} = await sb.rpc("nouvelle_cle_collecteur", {p_appareil: appareil});
   if (error) return setMsg("installer-msg", "Erreur : " + error.message, true);
   const lignes = [
     "@echo off", "chcp 65001 >nul", "title Installation du collecteur ODM",
     "rem Ce fichier contient ta cle de collecteur : ne le partage pas.",
+    `rem Appareil : ${appareil.replace(/[^\w .-]/g, "")}`,
     `set "ODM_URL=${CFG.supabase_url}"`, `set "ODM_KEY=${CFG.supabase_key}"`, `set "ODM_CLE=${cle}"`,
     `set "PS1=%TEMP%\\odm-installer.ps1"`,
     `powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest '${new URL("collecteur/installer.ps1", location.href).href}?t=%RANDOM%' -OutFile $env:PS1 -UseBasicParsing"`,
@@ -407,12 +432,15 @@ $("installer-btn").onclick = async () => {
     "echo.", "pause"];
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([lignes.join("\r\n") + "\r\n"], {type: "application/octet-stream"}));
-  a.download = "installer-odm.cmd"; document.body.append(a); a.click(); a.remove();
-  setMsg("installer-msg", "Fichier téléchargé : double-clique sur installer-odm.cmd. Si Windows affiche « Windows a protégé votre ordinateur », clique sur « Informations complémentaires » puis « Exécuter quand même ».");
+  a.download = `installer-odm-${appareil.replace(/[^\w-]/g, "_")}.cmd`; document.body.append(a); a.click(); a.remove();
+  listerAppareils();
+  setMsg("installer-msg", "Fichier téléchargé : double-clique dessus sur l'ordinateur « " + appareil + " ». Si Windows affiche « Windows a protégé votre ordinateur », clique sur « Informations complémentaires » puis « Exécuter quand même ».");
 };
 $("cle-btn").onclick = async () => {
   if (!confirm("Générer une nouvelle clé ? L'ancienne cessera de fonctionner.")) return;
-  const {data, error} = await sb.rpc("nouvelle_cle_collecteur");
+  const appareil = $("i-appareil").value.trim();
+  if (!appareil) { $("i-appareil").focus(); return; }
+  const {data, error} = await sb.rpc("nouvelle_cle_collecteur", {p_appareil: appareil});
   $("cle").hidden = false; $("cle").textContent = error ? "Erreur : " + error.message : data;
 };
 
