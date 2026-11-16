@@ -155,20 +155,20 @@ footer{color:var(--mute);font-size:.82rem}
       <option value="gaz">Gaz — nouvelle bonbonne</option>
     </select>
     <label for="a-date">Date</label><input id="a-date" type="date" required>
-    <div data-cat="electricite"><label for="a-index">Index du compteur (kWh)</label><input id="a-index" type="number" step="any" inputmode="decimal"></div>
+    <div data-cat="electricite"><label for="a-index">Index du compteur (kWh)</label><input id="a-index" type="text" inputmode="decimal" autocomplete="off"></div>
     <div data-cat="carburant">
       <div class="row">
-        <div><label for="a-euros">Montant (€)</label><input id="a-euros" type="number" step="any" inputmode="decimal"></div>
-        <div><label for="a-litres">Litres</label><input id="a-litres" type="number" step="any" inputmode="decimal"></div>
+        <div><label for="a-euros">Montant (€)</label><input id="a-euros" type="text" inputmode="decimal" autocomplete="off"></div>
+        <div><label for="a-litres">Litres</label><input id="a-litres" type="text" inputmode="decimal" autocomplete="off"></div>
       </div>
-      <label for="a-km">Compteur kilométrique</label><input id="a-km" type="number" step="1" inputmode="numeric">
+      <label for="a-km">Compteur kilométrique</label><input id="a-km" type="text" inputmode="numeric" autocomplete="off">
       <label class="check"><input id="a-plein" type="checkbox" checked> Plein complet (réservoir à ras)</label>
       <label for="a-lieu">Lieu</label><input id="a-lieu" type="text">
     </div>
     <div data-cat="gaz">
       <div class="row">
-        <div><label for="a-prix">Prix (€)</label><input id="a-prix" type="number" step="any" inputmode="decimal"></div>
-        <div><label for="a-kg">Poids (kg)</label><input id="a-kg" type="number" step="any" inputmode="decimal"></div>
+        <div><label for="a-prix">Prix (€)</label><input id="a-prix" type="text" inputmode="decimal" autocomplete="off"></div>
+        <div><label for="a-kg">Poids (kg)</label><input id="a-kg" type="text" inputmode="decimal" autocomplete="off"></div>
       </div>
     </div>
     <label for="a-note">Note</label><input id="a-note" type="text">
@@ -214,7 +214,7 @@ function baseOpts() {
 /* ---------- Supabase ---------- */
 const configOk = CFG.supabase_url && CFG.supabase_key;
 const sb = configOk ? supabase.createClient(CFG.supabase_url, CFG.supabase_key) : null;
-let session = null;
+let session = null, derniersReleves = [];
 const uidAffiche = () => session?.user.id || CFG.utilisateur_public || null;
 
 async function toutLire(table, cols, order) {
@@ -238,6 +238,7 @@ async function charger() {
     ]);
     claudeRows = cl.map(x => ({t: Date.parse(x.ts), h5: x.session_5h, s7: x.semaine, r5: Date.parse(x.session_5h_reset) || null, r7: Date.parse(x.semaine_reset) || null}));
     afficherClaude();
+    derniersReleves = rel;
     elec(rel.filter(r => r.categorie === "electricite"));
     carbu(rel.filter(r => r.categorie === "carburant"));
     gaz(rel.filter(r => r.categorie === "gaz"));
@@ -391,14 +392,24 @@ async function compresser(file) {
   return url;
 }
 
+// Derniers relevés connus, transmis à Claude pour vérifier la vraisemblance de sa lecture.
+function contexteLecture() {
+  const dernier = cat => derniersReleves.filter(r => r.categorie === cat && r.valeur != null).at(-1);
+  const e = dernier("electricite"), c = dernier("carburant"), out = [];
+  if (e) out.push(`Dernier index électrique connu : ${e.valeur} kWh le ${e.date}.`);
+  if (c) out.push(`Dernier kilométrage connu du véhicule : ${c.valeur} km le ${c.date}.`);
+  return out.join(" ");
+}
+
 // Remplit les champs avec ce que Claude a lu ; une valeur nulle ne remplace rien (une 2e photo complète la 1re).
 function remplir(l) {
   if (l.categorie !== "inconnu") { $("a-cat").value = l.categorie; majCat(); }
   const put = (id, v) => { if (v != null && v !== "") $(id).value = v; };
   put("a-date", /^\d{4}-\d{2}-\d{2}$/.test(l.date || "") ? l.date : null);
-  put("a-index", l.index_kwh); put("a-litres", l.litres); put("a-km", l.km); put("a-lieu", l.lieu);
-  if ($("a-cat").value === "gaz") { put("a-prix", l.euros); put("a-kg", l.kg); } else put("a-euros", l.euros);
-  if (l.euros == null && l.litres != null && l.prix_litre != null) put("a-euros", Math.round(l.litres * l.prix_litre * 100) / 100);
+  const fr = v => v == null ? null : String(v).replace(".", ",");
+  put("a-index", fr(l.index_kwh)); put("a-litres", fr(l.litres)); put("a-km", l.km); put("a-lieu", l.lieu);
+  if ($("a-cat").value === "gaz") { put("a-prix", fr(l.euros)); put("a-kg", fr(l.kg)); } else put("a-euros", fr(l.euros));
+  if (l.euros == null && l.litres != null && l.prix_litre != null) put("a-euros", fr(Math.round(l.litres * l.prix_litre * 100) / 100));
 }
 
 $("a-photo").onchange = async () => {
@@ -408,7 +419,7 @@ $("a-photo").onchange = async () => {
   try {
     const image = await compresser(f);
     $("preview").src = image; $("preview").style.display = "block";
-    const {data, error} = await sb.functions.invoke(CFG.fonction_photo || "lire-photo", {body: {image}});
+    const {data, error} = await sb.functions.invoke(CFG.fonction_photo || "lire-photo", {body: {image, contexte: contexteLecture()}});
     if (error) {
       let detail = error.message;
       try { const j = await error.context.json(); detail = j.erreur || j.message || detail; } catch {}
@@ -423,7 +434,7 @@ $("a-photo").onchange = async () => {
 
 $("f-add").onsubmit = async e => {
   e.preventDefault();
-  const n = id => $(id).value === "" ? null : parseFloat($(id).value.replace(",", "."));
+  const n = id => { const v = $(id).value.replace(/\s/g, "").replace(",", "."); return v === "" || isNaN(+v) ? null : +v; };
   const cat = $("a-cat").value, msg = $("add-msg");
   const row = {categorie: cat, date: $("a-date").value, note: $("a-note").value || null};
   if (cat === "electricite") Object.assign(row, {valeur: n("a-index")});

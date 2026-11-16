@@ -27,10 +27,12 @@ const Lecture = z.object({
 const CONSIGNE = `Tu lis des photos prises pour suivre des consommations personnelles.
 Identifie ce que montre la photo :
 - "electricite" : un compteur électrique. Donne l'index affiché en kWh (chiffres avant la virgule et décimales si elles sont visibles). S'il y a plusieurs registres (heures pleines / creuses), prends le total ou signale-le dans la remarque.
+  Les petits compteurs modulaires de tableau électrique ont souvent un afficheur LCD à 7 segments monté à la verticale : le texte est tourné de 90°. Repère d'abord le sens de lecture grâce aux inscriptions imprimées (« kWh », référence, tension) et lis les chiffres dans ce sens ; attention aux 6 et 9 qui s'échangent quand on lit à l'envers. Sur ces afficheurs, les deux derniers chiffres sont en général les décimales.
 - "carburant" : un ticket de carte bancaire ou de pompe, un affichage de pompe, ou un tableau de bord. Donne litres, montant total en euros, prix au litre, date, station ou ville ; et le kilométrage total si un compteur kilométrique est visible.
 - "gaz" : une bonbonne ou un ticket d'achat de gaz. Donne le prix et le poids (kg).
 - "inconnu" : rien de tout ça.
-Ne devine jamais : un champ illisible ou absent vaut null. Un nombre s'écrit avec un point décimal.
+Pour la valeur principale (index, litres, montant, kilométrage), donne toujours ta meilleure lecture : la personne vérifie avant d'enregistrer. Explique tes doutes dans la remarque. Les autres champs illisibles ou absents valent null. Un nombre s'écrit avec un point décimal.
+Si des relevés précédents sont fournis, utilise-les pour vérifier la vraisemblance : un index de compteur ou un kilométrage ne baisse jamais et augmente en général peu d'un relevé à l'autre. Si ta lecture est incohérente avec eux, relis la photo (sens, ordre et nombre des chiffres) avant de répondre.
 La date du jour est donnée dans le message pour t'aider à lire une date abrégée ; ne la recopie pas : le champ date vient uniquement de la photo.`;
 
 const CORS = {
@@ -51,9 +53,9 @@ Deno.serve(async (req) => {
   const { data: user, error: errUser } = await sb.auth.getUser(jeton);
   if (errUser || !user?.user) return json({ erreur: "connexion requise" }, 401);
 
-  let image: string;
+  let image: string, contexte: unknown;
   try {
-    ({ image } = await req.json());
+    ({ image, contexte } = await req.json());
   } catch {
     return json({ erreur: "corps JSON invalide" }, 400);
   }
@@ -68,13 +70,13 @@ Deno.serve(async (req) => {
       max_tokens: 4000,
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default", // si le modèle décline, l'API relance la demande sur un autre modèle
-      output_config: { effort: "low", format: betaZodOutputFormat(Lecture) },
+      output_config: { effort: "medium", format: betaZodOutputFormat(Lecture) },
       system: CONSIGNE,
       messages: [{
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: "image/jpeg", data: image } },
-          { type: "text", text: `Date du jour : ${new Date().toISOString().slice(0, 10)}. Lis cette photo.` },
+          { type: "text", text: `Date du jour : ${new Date().toISOString().slice(0, 10)}.\n${typeof contexte === "string" && contexte ? "Relevés précédents : " + contexte.slice(0, 500) + "\n" : ""}Lis cette photo.` },
         ],
       }],
     });
