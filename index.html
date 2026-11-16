@@ -405,7 +405,7 @@ $("a-photo").onchange = async () => {
   try {
     const image = await compresser(f);
     $("preview").src = image; $("preview").style.display = "block";
-    const {data, error} = await sb.functions.invoke("lire-photo", {body: {image}});
+    const {data, error} = await sb.functions.invoke(CFG.fonction_photo || "lire-photo", {body: {image}});
     if (error) {
       let detail = error.message;
       try { detail = (await error.context.json()).erreur || detail; } catch {}

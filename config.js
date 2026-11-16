@@ -5,5 +5,7 @@ window.ODM_CONFIG = {
   supabase_key: "sb_publishable_tLvG7iauPnHR8HihhNpecw_ROd2svon", // clé « publishable » (ou « anon public »), JAMAIS la clé secrète / service_role
   // Identifiant (UUID) de l'utilisateur affiché aux visiteurs non connectés.
   // Supabase → Authentication → Users → copier « User UID ».
-  utilisateur_public: "d1468d76-cd6b-4c6b-ac91-d2c3416caff5"
+  utilisateur_public: "d1468d76-cd6b-4c6b-ac91-d2c3416caff5",
+  // Adresse de la fonction de lecture des photos (fin de son URL dans Supabase → Edge Functions).
+  fonction_photo: "dynamic-endpoint"
 };

@@ -31,7 +31,7 @@ Les photos sont réduites (1568 px) et ré-encodées dans le navigateur, ce qui 
 ### 2. La lecture des photos (facultatif)
 1. Créer une clé API sur https://platform.claude.com (paiement à l'usage, **distinct de l'abonnement Claude**) et y mettre quelques euros de crédit.
 2. Supabase → **Edge Functions → Secrets** : ajouter `ANTHROPIC_API_KEY` avec cette clé.
-3. **Edge Functions → Deploy a new function → Via Editor** : nom `lire-photo`, coller `supabase/functions/lire-photo/index.ts`, **Deploy**.
+3. **Edge Functions → Deploy a new function → Via Editor** : nom `lire-photo`, coller `supabase/functions/lire-photo/index.ts`, **Deploy**. Vérifier ensuite la fin de l'URL affichée (Supabase peut garder un nom généré, ex. `dynamic-endpoint`) et la reporter dans `fonction_photo` de `config.js`.
 
 La fonction n'accepte que les comptes connectés. Coût indicatif : environ 1 centime par photo avec Claude Opus 5.5 (constante `MODELE` en haut du fichier ; Claude Haiku 5.5 coûte environ 40 fois moins).
 
