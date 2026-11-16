@@ -10,8 +10,10 @@ Usage : python claude_usage.py          (relève et envoie)
         python claude_usage.py --test   (relève et affiche, sans envoyer)
 """
 import json
+import os
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime
@@ -28,18 +30,37 @@ def log(msg):
         f.write(ligne + "\n")
 
 
+FICHIER_ID = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / ".credentials.json"
+# Renouvellement du jeton : mêmes paramètres que Claude Code (repris de l'outil communautaire clauth).
+URL_JETON = "https://api.anthropic.com/v1/oauth/token"
+CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+
+
 def lire_jeton():
-    # Windows et Linux : fichier de Claude Code ; macOS : Trousseau
-    fichier = Path.home() / ".claude" / ".credentials.json"
-    if fichier.exists():
-        brut = fichier.read_text(encoding="utf-8")
-    elif sys.platform == "darwin":
+    # Windows et Linux : fichier écrit par Claude Code en ligne de commande ; macOS : Trousseau
+    if FICHIER_ID.exists():
+        ids = json.loads(FICHIER_ID.read_text(encoding="utf-8"))
+        oauth = ids["claudeAiOauth"]
+        # Jeton expiré (ou presque) : on le renouvelle et on réécrit le fichier,
+        # car l'ancien jeton de renouvellement n'est plus valable ensuite.
+        if oauth.get("expiresAt", 0) / 1000 < time.time() + 300 and oauth.get("refreshToken"):
+            t = requete(URL_JETON, {"Content-Type": "application/json"}, {
+                "grant_type": "refresh_token", "refresh_token": oauth["refreshToken"], "client_id": CLIENT_ID})
+            oauth["accessToken"] = t["access_token"]
+            oauth["refreshToken"] = t.get("refresh_token", oauth["refreshToken"])
+            oauth["expiresAt"] = int((time.time() + t["expires_in"]) * 1000)
+            tmp = FICHIER_ID.with_suffix(".tmp")
+            tmp.write_text(json.dumps(ids), encoding="utf-8")
+            os.replace(tmp, FICHIER_ID)
+            log("Jeton Claude renouvelé")
+        return oauth["accessToken"]
+    if sys.platform == "darwin":
         brut = subprocess.run(
             ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
             capture_output=True, text=True, check=True).stdout
-    else:
-        sys.exit(f"Identifiants Claude Code introuvables ({fichier}). Connecte-toi d'abord dans Claude Code.")
-    return json.loads(brut)["claudeAiOauth"]["accessToken"]
+        return json.loads(brut)["claudeAiOauth"]["accessToken"]
+    sys.exit(f"Identifiants introuvables ({FICHIER_ID}). Installe Claude Code en ligne de commande "
+             "et connecte-toi une fois avec la commande « claude » (voir README).")
 
 
 def requete(url, headers, corps=None):

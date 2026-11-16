@@ -31,9 +31,12 @@ Les photos sont réduites (≈1600 px) et ré-encodées dans le navigateur avant
 Mettre ces trois valeurs dans `config.js` (elles ne sont pas secrètes), puis activer GitHub Pages : Settings → Pages → *Deploy from a branch* → `main` / `(root)`.
 
 ### 3. Le collecteur Claude (Windows)
-Prérequis : Python (python.org, cocher *Add to PATH*) et Claude Code connecté sur l'ordi.
+Prérequis : Python (python.org, cocher *Add to PATH*) et **Claude Code en ligne de commande** connecté une fois.
+L'appli de bureau Claude ne laisse pas son jeton lisible : c'est la commande `claude` qui écrit `%USERPROFILE%\.claude\.credentials.json`. Le collecteur renouvelle ensuite ce jeton tout seul.
 
 ```powershell
+irm https://claude.ai/install.ps1 | iex             # installe Claude Code en ligne de commande
+claude                                             # nouvelle fenêtre PowerShell ; se connecter avec son compte Claude, puis /exit
 git clone https://github.com/Gamgie/ODM.git $HOME\ODM
 py $HOME\ODM\collecteur\claude_usage.py --test     # doit afficher « Relevé (non envoyé) : ... »
 copy $HOME\ODM\collecteur\config.exemple.json $HOME\ODM\collecteur\config.json
