@@ -199,7 +199,7 @@ footer{color:var(--mute);font-size:.82rem}
 </dialog>
 
 <script>
-const VERSION = 8;
+const VERSION = 9;
 const CFG = window.ODM_CONFIG || {};
 // Mise à jour automatique : le téléphone garde la page en cache ; si version.json annonce plus récent, on recharge.
 document.getElementById("version").textContent = VERSION;
@@ -316,21 +316,33 @@ function elec(rows) {
   // heure de saisie si le relevé a été saisi le jour même (deux relevés le même jour restent calculables)
   const quand = x => x.created_at && x.created_at.slice(0, 10) === x.date ? Date.parse(x.created_at) : Date.parse(x.date);
   const r = rows.filter(x => x.valeur != null).map(x => ({...x, t: quand(x), i: +x.valeur})).sort((a, b) => a.t - b.t);
-  $("elec-table").innerHTML = r.length ? "<tr><th>Date</th><th>Index (kWh)</th><th>kWh/jour</th><th></th></tr>" +
-    r.map((x, k) => { const p = r[k - 1]; const kj = p && x.t > p.t ? (x.i - p.i) / ((x.t - p.t) / DAY) : null;
-      return `<tr><td>${fdate(x.t)}${x.note ? " · " + esc(x.note) : ""}</td><td>${fmt(x.i, 2)}</td><td>${fmt(kj, 1)}</td><td>${cellDel(x)}</td></tr>`; }).reverse().join("") : "";
-  if (r.length < 2) { tiles("elec-tiles", [[r.length ? fmt(r[0].i, 0) : "—", "dernier index (kWh)"]]); return noChart("elec-chart", "Il faut au moins deux relevés du compteur."); }
+  const duree = ms => ms < 36e5 ? Math.max(1, Math.round(ms / 6e4)) + " min" : Math.round(ms / 36e5) + " h";
+  $("elec-table").innerHTML = r.length ? "<tr><th>Date</th><th>Index (kWh)</th><th>Conso</th><th></th></tr>" +
+    r.map((x, k) => {
+      const p = r[k - 1], dt = p ? x.t - p.t : 0;
+      // moins de 24 h : on montre la quantité consommée, une moyenne par jour n'aurait pas de sens
+      const conso = !p || dt <= 0 ? "—" : dt < DAY ? `+${fmt(x.i - p.i, 2)} kWh en ${duree(dt)}` : `${fmt((x.i - p.i) / (dt / DAY), 1)} kWh/j`;
+      return `<tr><td>${fdate(x.t)}${x.note ? " · " + esc(x.note) : ""}</td><td>${fmt(x.i, 2)}</td><td>${conso}</td><td>${cellDel(x)}</td></tr>`; }).reverse().join("") : "";
+  // Périodes d'au moins 24 h : un relevé trop rapproché du précédent est regroupé avec le suivant.
+  const per = [];
+  let debut = r[0];
+  for (const x of r.slice(1)) {
+    if (x.t - debut.t >= DAY) { per.push({t0: debut.t, t: x.t, kwhj: (x.i - debut.i) / ((x.t - debut.t) / DAY)}); debut = x; }
+  }
+  if (!per.length) {
+    tiles("elec-tiles", [[r.length ? fmt(r.at(-1).i, 0) : "—", "dernier index (kWh)"]]);
+    return noChart("elec-chart", r.length < 2 ? "Il faut au moins deux relevés du compteur." : "Il faut deux relevés espacés d'au moins 24 h.");
+  }
   clearEmpty("elec-chart");
-  const per = r.slice(1).map((x, k) => ({t: x.t, kwhj: (x.i - r[k].i) / Math.max(1 / 24, (x.t - r[k].t) / DAY)}));
-  const total = r.at(-1).i - r[0].i, jours = Math.max(1 / 24, (r.at(-1).t - r[0].t) / DAY);
-  tiles("elec-tiles", [[fmt(per.at(-1).kwhj, 1), "kWh/jour (dernier relevé)"], [fmt(total / jours, 1), "kWh/jour en moyenne"],
+  const t0 = per[0].t0, t1 = per.at(-1).t, total = r.find(x => x.t === per.at(-1).t).i - r.find(x => x.t === t0).i, jours = (t1 - t0) / DAY;
+  tiles("elec-tiles", [[fmt(per.at(-1).kwhj, 1), "kWh/jour (dernière période)"], [fmt(total / jours, 1), "kWh/jour en moyenne"],
     [fmt(total / jours * 30, 0), "kWh/mois estimés"], [fmt(r.at(-1).i, 0), "dernier index"]]);
   const o = baseOpts(); o.plugins.legend.display = false;
-  o.scales.x.min = r[0].t; o.scales.x.max = r.at(-1).t;
+  o.scales.x.min = t0; o.scales.x.max = t1;
   o.plugins.tooltip = {callbacks: {title: i => fdate(i[0].parsed.x), label: i => fmt(i.parsed.y, 1) + " kWh/jour"}};
-  // palier : la conso moyenne d'un intervalle s'étend du relevé précédent au relevé suivant
-  const pts = [{x: r[0].t, y: per[0].kwhj}, ...per.map(p => ({x: p.t, y: p.kwhj}))];
-  chart("elec-chart", {type: "line", options: o, data: {datasets: [{data: pts, borderColor: css("--c4"), backgroundColor: css("--c4"), stepped: "before", pointRadius: 3}]}});
+  // palier : la conso moyenne d'une période s'étend de son début à sa fin
+  const pts = [{x: t0, y: per[0].kwhj}, ...per.map(p => ({x: p.t, y: p.kwhj}))];
+  chart("elec-chart", {type: "line", options: o, data: {datasets: [{data: pts, borderColor: css("--c4"), backgroundColor: css("--c4"), stepped: "before", pointRadius: 3, fill: false}]}});
 }
 
 /* ---------- Carburant ---------- */
