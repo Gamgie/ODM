@@ -113,7 +113,7 @@ footer{color:var(--mute);font-size:.82rem}
     <div class="scroll"><table id="gaz-table"></table></div>
   </section>
 
-  <footer>Version 5 · Code et méthode : <a href="https://github.com/Gamgie/ODM" style="color:inherit">github.com/Gamgie/ODM</a></footer>
+  <footer>Version <span id="version"></span> · Code et méthode : <a href="https://github.com/Gamgie/ODM" style="color:inherit">github.com/Gamgie/ODM</a></footer>
 </main>
 
 <button class="btn main" id="fab" hidden>+ Relevé</button>
@@ -191,7 +191,16 @@ footer{color:var(--mute);font-size:.82rem}
 </dialog>
 
 <script>
+const VERSION = 6;
 const CFG = window.ODM_CONFIG || {};
+// Mise à jour automatique : le téléphone garde la page en cache ; si version.json annonce plus récent, on recharge.
+document.getElementById("version").textContent = VERSION;
+fetch("version.json?t=" + Date.now(), {cache: "no-store"}).then(r => r.json()).then(v => {
+  if (v.version > VERSION && sessionStorage.getItem("maj") !== String(v.version)) {
+    try { sessionStorage.setItem("maj", v.version); } catch {}
+    location.replace(location.pathname + "?v=" + v.version + location.hash);
+  }
+}).catch(() => {});
 const $ = id => document.getElementById(id);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const DAY = 864e5;
@@ -296,14 +305,16 @@ $("range").addEventListener("click", e => {
 
 /* ---------- Électricité ---------- */
 function elec(rows) {
-  const r = rows.filter(x => x.valeur != null).map(x => ({...x, t: Date.parse(x.date), i: +x.valeur}));
+  // heure de saisie si le relevé a été saisi le jour même (deux relevés le même jour restent calculables)
+  const quand = x => x.created_at && x.created_at.slice(0, 10) === x.date ? Date.parse(x.created_at) : Date.parse(x.date);
+  const r = rows.filter(x => x.valeur != null).map(x => ({...x, t: quand(x), i: +x.valeur})).sort((a, b) => a.t - b.t);
   $("elec-table").innerHTML = r.length ? "<tr><th>Date</th><th>Index (kWh)</th><th>kWh/jour</th><th></th></tr>" +
     r.map((x, k) => { const p = r[k - 1]; const kj = p && x.t > p.t ? (x.i - p.i) / ((x.t - p.t) / DAY) : null;
       return `<tr><td>${fdate(x.t)}${x.note ? " · " + esc(x.note) : ""}</td><td>${fmt(x.i, 2)}</td><td>${fmt(kj, 1)}</td><td>${cellDel(x)}</td></tr>`; }).reverse().join("") : "";
   if (r.length < 2) { tiles("elec-tiles", [[r.length ? fmt(r[0].i, 0) : "—", "dernier index (kWh)"]]); return noChart("elec-chart", "Il faut au moins deux relevés du compteur."); }
   clearEmpty("elec-chart");
-  const per = r.slice(1).map((x, k) => ({t: x.t, kwhj: (x.i - r[k].i) / Math.max(1, (x.t - r[k].t) / DAY)}));
-  const total = r.at(-1).i - r[0].i, jours = Math.max(1, (r.at(-1).t - r[0].t) / DAY);
+  const per = r.slice(1).map((x, k) => ({t: x.t, kwhj: (x.i - r[k].i) / Math.max(1 / 24, (x.t - r[k].t) / DAY)}));
+  const total = r.at(-1).i - r[0].i, jours = Math.max(1 / 24, (r.at(-1).t - r[0].t) / DAY);
   tiles("elec-tiles", [[fmt(per.at(-1).kwhj, 1), "kWh/jour (dernier relevé)"], [fmt(total / jours, 1), "kWh/jour en moyenne"],
     [fmt(total / jours * 30, 0), "kWh/mois estimés"], [fmt(r.at(-1).i, 0), "dernier index"]]);
   const o = baseOpts(); o.plugins.legend.display = false;

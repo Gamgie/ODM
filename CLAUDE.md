@@ -4,6 +4,7 @@ Site statique (`index.html`, GitHub Pages depuis `main`) relié à Supabase. Voi
 
 - Pas de build, pas de framework : HTML + JS vanilla, Chart.js et supabase-js chargés depuis un CDN avec version figée.
 - Interface et textes en français.
+- À chaque modification du site : incrémenter `VERSION` dans `index.html` **et** `version.json` (les téléphones gardent la page en cache ; la page se recharge seule quand `version.json` annonce plus récent).
 - Toute évolution de la base passe par `supabase/schema.sql`, qui doit rester relançable sans erreur (`if not exists`, `drop policy if exists`, `create or replace`).
 - Sécurité : lecture publique, écriture limitée à `auth.uid()` par les règles RLS. Ne jamais mettre la clé `service_role` dans le dépôt. `config.js` ne contient que des valeurs publiques.
 - Le collecteur (`collecteur/claude_usage.py`) écrit via la fonction `ajouter_releve_claude` et une clé par utilisateur ; `collecteur/config.json` n'est jamais commité.
