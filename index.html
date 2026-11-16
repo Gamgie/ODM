@@ -60,7 +60,9 @@ form .check input{width:auto}
 .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
 .msg{font-size:.88rem;margin:10px 0 0;min-height:1.2em}
 .msg.err{color:var(--bad)}
-#preview{max-width:100%;max-height:160px;border-radius:8px;margin-top:8px;display:none}
+#preview{max-width:100%;max-height:120px;border-radius:8px;margin-top:8px;display:none}
+.photo-btn{display:block!important;text-align:center;font-size:1.05rem;padding:12px;color:var(--card)!important;margin:0!important}
+.photo-btn[aria-busy="true"]{opacity:.6;pointer-events:none}
 code.key{display:block;word-break:break-all;background:var(--bg);padding:8px;border-radius:8px;font-size:.8rem;margin:8px 0}
 [hidden]{display:none!important}
 footer{color:var(--mute);font-size:.82rem}
@@ -141,15 +143,17 @@ footer{color:var(--mute);font-size:.82rem}
 <dialog id="dlg-add">
   <form id="f-add">
     <h3>Nouveau relevé</h3>
+    <label class="btn main photo-btn" for="a-photo">📷 Lire une photo</label>
+    <input id="a-photo" type="file" accept="image/*" hidden>
+    <p class="sub" style="font-size:.82rem;margin:6px 0 0">Compteur, ticket ou pompe : Claude remplit les champs, tu vérifies. Une 2<sup>e</sup> photo (ex. le compteur kilométrique) complète la première. Les photos ne sont pas conservées.</p>
+    <img id="preview" alt="Aperçu de la photo">
+    <p class="msg" id="lecture-msg"></p>
     <label for="a-cat">Quoi ?</label>
     <select id="a-cat">
       <option value="electricite">Électricité — relevé du compteur</option>
       <option value="carburant">Carburant — plein</option>
       <option value="gaz">Gaz — nouvelle bonbonne</option>
     </select>
-    <label for="a-photo">Photo (compteur, ticket… facultatif)</label>
-    <input id="a-photo" type="file" accept="image/*">
-    <img id="preview" alt="Aperçu de la photo">
     <label for="a-date">Date</label><input id="a-date" type="date" required>
     <div data-cat="electricite"><label for="a-index">Index du compteur (kWh)</label><input id="a-index" type="number" step="any" inputmode="decimal"></div>
     <div data-cat="carburant">
@@ -212,7 +216,6 @@ const configOk = CFG.supabase_url && CFG.supabase_key;
 const sb = configOk ? supabase.createClient(CFG.supabase_url, CFG.supabase_key) : null;
 let session = null;
 const uidAffiche = () => session?.user.id || CFG.utilisateur_public || null;
-const photoUrl = p => p ? sb.storage.from("photos").getPublicUrl(p).data.publicUrl : null;
 
 async function toutLire(table, cols, order) {
   const out = [], uid = uidAffiche();
@@ -242,8 +245,7 @@ async function charger() {
 }
 
 const peutModifier = r => session && r.user_id === session.user.id;
-const cellPhoto = r => r.photo ? `<a href="${photoUrl(r.photo)}" target="_blank" rel="noopener" title="Voir la photo">📷</a>` : "";
-const cellDel = r => peutModifier(r) ? `<button class="del" data-del="${r.id}" data-photo="${esc(r.photo || "")}" title="Supprimer">✕</button>` : "";
+const cellDel = r => peutModifier(r) ? `<button class="del" data-del="${r.id}" title="Supprimer">✕</button>` : "";
 
 /* ---------- Claude ---------- */
 let claudeRows = [], rangeH = 168;
@@ -283,7 +285,7 @@ function elec(rows) {
   const r = rows.filter(x => x.valeur != null).map(x => ({...x, t: Date.parse(x.date), i: +x.valeur}));
   $("elec-table").innerHTML = r.length ? "<tr><th>Date</th><th>Index (kWh)</th><th>kWh/jour</th><th></th></tr>" +
     r.map((x, k) => { const p = r[k - 1]; const kj = p && x.t > p.t ? (x.i - p.i) / ((x.t - p.t) / DAY) : null;
-      return `<tr><td>${fdate(x.t)}${x.note ? " · " + esc(x.note) : ""}</td><td>${fmt(x.i, 2)}</td><td>${fmt(kj, 1)}</td><td>${cellPhoto(x)}${cellDel(x)}</td></tr>`; }).reverse().join("") : "";
+      return `<tr><td>${fdate(x.t)}${x.note ? " · " + esc(x.note) : ""}</td><td>${fmt(x.i, 2)}</td><td>${fmt(kj, 1)}</td><td>${cellDel(x)}</td></tr>`; }).reverse().join("") : "";
   if (r.length < 2) { tiles("elec-tiles", [[r.length ? fmt(r[0].i, 0) : "—", "dernier index (kWh)"]]); return noChart("elec-chart", "Il faut au moins deux relevés du compteur."); }
   clearEmpty("elec-chart");
   const per = r.slice(1).map((x, k) => ({t: x.t, kwhj: (x.i - r[k].i) / Math.max(1, (x.t - r[k].t) / DAY)}));
@@ -311,7 +313,7 @@ function carbu(rows) {
     }
   });
   $("carbu-table").innerHTML = r.length ? "<tr><th>Date</th><th>km</th><th>L</th><th>€</th><th>€/L</th><th>L/100</th><th></th></tr>" +
-    r.slice().reverse().map(x => `<tr><td>${fdate(x.t)}${x.lieu ? " · " + esc(x.lieu) : ""}${x.plein_complet === false && x.l ? " (partiel)" : ""}</td><td>${x.km ?? "—"}</td><td>${fmt(x.l, 1)}</td><td>${fmt(x.e, 2)}</td><td>${fmt(x.pl, 3)}</td><td>${x.conso ? fmt(x.conso, 1) : "—"}</td><td>${cellPhoto(x)}${cellDel(x)}</td></tr>`).join("") : "";
+    r.slice().reverse().map(x => `<tr><td>${fdate(x.t)}${x.lieu ? " · " + esc(x.lieu) : ""}${x.plein_complet === false && x.l ? " (partiel)" : ""}</td><td>${x.km ?? "—"}</td><td>${fmt(x.l, 1)}</td><td>${fmt(x.e, 2)}</td><td>${fmt(x.pl, 3)}</td><td>${x.conso ? fmt(x.conso, 1) : "—"}</td><td>${cellDel(x)}</td></tr>`).join("") : "";
   const c = r.filter(x => x.conso), pleins = r.filter(x => x.e);
   if (!pleins.length) { tiles("carbu-tiles", []); return noChart("carbu-chart", "Aucun plein enregistré pour l'instant."); }
   const totE = pleins.reduce((s, x) => s + x.e, 0), kms = r.filter(x => x.km != null);
@@ -339,7 +341,7 @@ function gaz(rows) {
     [fmt((Date.now() - r.at(-1).t) / DAY, 0) + " j", "bonbonne en cours depuis"]]);
   $("gaz-table").innerHTML = "<tr><th>Installée le</th><th>Durée</th><th>Prix</th><th>€/jour</th><th></th></tr>" +
     r.map((x, k) => { const d = k < dur.length ? dur[k] : null;
-      return `<tr><td>${fdate(x.t)}</td><td>${d ? fmt(d, 0) + " j" : "en cours"}</td><td>${x.euros ? fmt(x.euros, 2) + " €" : "—"}</td><td>${d && x.euros ? fmt(x.euros / d, 2) : "—"}</td><td>${cellPhoto(x)}${cellDel(x)}</td></tr>`; }).reverse().join("");
+      return `<tr><td>${fdate(x.t)}</td><td>${d ? fmt(d, 0) + " j" : "en cours"}</td><td>${x.euros ? fmt(x.euros, 2) + " €" : "—"}</td><td>${d && x.euros ? fmt(x.euros / d, 2) : "—"}</td><td>${cellDel(x)}</td></tr>`; }).reverse().join("");
 }
 
 /* ---------- Suppression ---------- */
@@ -348,7 +350,6 @@ document.addEventListener("click", async e => {
   if (!confirm("Supprimer ce relevé ?")) return;
   const {error} = await sb.from("releves").delete().eq("id", b.dataset.del);
   if (error) return alert(error.message);
-  if (b.dataset.photo) await sb.storage.from("photos").remove([b.dataset.photo]);
   charger();
 });
 
@@ -370,24 +371,50 @@ $("cle-btn").onclick = async () => {
 };
 
 /* ---------- Ajout ---------- */
-let photoBlob = null;
 function majCat() { document.querySelectorAll("#f-add [data-cat]").forEach(d => d.hidden = d.dataset.cat !== $("a-cat").value); }
 $("a-cat").onchange = majCat;
-$("fab").onclick = () => { $("f-add").reset(); photoBlob = null; $("preview").style.display = "none"; $("a-date").value = new Date().toLocaleDateString("sv"); $("add-msg").textContent = ""; majCat(); $("dlg-add").showModal(); };
+const setMsg = (id, txt, err) => { $(id).textContent = txt; $(id).className = "msg" + (err ? " err" : ""); };
+$("fab").onclick = () => {
+  $("f-add").reset(); $("preview").style.display = "none"; $("a-date").value = new Date().toLocaleDateString("sv");
+  setMsg("add-msg", ""); setMsg("lecture-msg", ""); majCat(); $("dlg-add").showModal();
+};
 
-// Réduit la photo (≈1600 px, JPEG) ; le ré-encodage supprime les métadonnées (dont la position GPS).
+// Réduit la photo (1568 px max, taille utile pour Claude) en JPEG ; le ré-encodage supprime les métadonnées (dont la position GPS).
 async function compresser(file) {
   const img = await createImageBitmap(file, {imageOrientation: "from-image"});
-  const s = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const s = Math.min(1, 1568 / Math.max(img.width, img.height));
   const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
   c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-  return new Promise(res => c.toBlob(res, "image/jpeg", 0.72));
+  return c.toDataURL("image/jpeg", 0.8);
 }
+
+// Remplit les champs avec ce que Claude a lu ; une valeur nulle ne remplace rien (une 2e photo complète la 1re).
+function remplir(l) {
+  if (l.categorie !== "inconnu") { $("a-cat").value = l.categorie; majCat(); }
+  const put = (id, v) => { if (v != null && v !== "") $(id).value = v; };
+  put("a-date", /^\d{4}-\d{2}-\d{2}$/.test(l.date || "") ? l.date : null);
+  put("a-index", l.index_kwh); put("a-litres", l.litres); put("a-km", l.km); put("a-lieu", l.lieu);
+  if ($("a-cat").value === "gaz") { put("a-prix", l.euros); put("a-kg", l.kg); } else put("a-euros", l.euros);
+  if (l.euros == null && l.litres != null && l.prix_litre != null) put("a-euros", Math.round(l.litres * l.prix_litre * 100) / 100);
+}
+
 $("a-photo").onchange = async () => {
-  const f = $("a-photo").files[0]; photoBlob = null; $("preview").style.display = "none";
-  if (!f) return;
-  try { photoBlob = await compresser(f); $("preview").src = URL.createObjectURL(photoBlob); $("preview").style.display = "block"; }
-  catch { $("add-msg").textContent = "Photo illisible."; $("add-msg").className = "msg err"; }
+  const f = $("a-photo").files[0]; if (!f) return;
+  const btn = document.querySelector(".photo-btn");
+  btn.setAttribute("aria-busy", "true"); btn.textContent = "⏳ Lecture en cours…"; setMsg("lecture-msg", "");
+  try {
+    const image = await compresser(f);
+    $("preview").src = image; $("preview").style.display = "block";
+    const {data, error} = await sb.functions.invoke("lire-photo", {body: {image}});
+    if (error) {
+      let detail = error.message;
+      try { detail = (await error.context.json()).erreur || detail; } catch {}
+      throw new Error(detail);
+    }
+    if (data.lecture.categorie === "inconnu") setMsg("lecture-msg", "Rien de reconnu sur la photo. " + (data.lecture.remarque || ""), true);
+    else { remplir(data.lecture); setMsg("lecture-msg", "✓ Lu par Claude — vérifie avant d'enregistrer. " + (data.lecture.remarque || "")); }
+  } catch (err) { setMsg("lecture-msg", "Lecture impossible : " + err.message, true); }
+  finally { btn.removeAttribute("aria-busy"); btn.textContent = "📷 Lire une photo"; $("a-photo").value = ""; }
 };
 
 $("f-add").onsubmit = async e => {
@@ -401,12 +428,6 @@ $("f-add").onsubmit = async e => {
   if (cat === "electricite" && row.valeur == null) { msg.textContent = "Indique l'index du compteur."; msg.className = "msg err"; return; }
   $("add-ok").disabled = true; msg.className = "msg"; msg.textContent = "Enregistrement…";
   try {
-    if (photoBlob) {
-      const path = `${session.user.id}/${row.date}-${cat}-${Date.now()}.jpg`;
-      const {error} = await sb.storage.from("photos").upload(path, photoBlob, {contentType: "image/jpeg"});
-      if (error) throw error;
-      row.photo = path;
-    }
     const {error} = await sb.from("releves").insert(row);
     if (error) throw error;
     $("dlg-add").close(); charger();

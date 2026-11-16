@@ -15,7 +15,6 @@ create table if not exists public.releves (
   plein_complet boolean,   -- carburant : réservoir rempli à ras
   lieu          text,
   note          text,
-  photo         text,      -- chemin du fichier dans le bucket « photos »
   created_at    timestamptz not null default now()
 );
 create index if not exists releves_user_date on public.releves (user_id, categorie, date);
@@ -86,16 +85,10 @@ end $$;
 revoke execute on function public.ajouter_releve_claude(text, numeric, timestamptz, numeric, timestamptz) from public;
 grant execute on function public.ajouter_releve_claude(text, numeric, timestamptz, numeric, timestamptz) to anon, authenticated;
 
--- ---------- Photos ----------
-insert into storage.buckets (id, name, public) values ('photos', 'photos', true)
-  on conflict (id) do nothing;
-
+-- ---------- Photos : non conservées ----------
+-- Les photos sont lues par la fonction « lire-photo » puis oubliées.
+-- Nettoyage de la première version, qui les stockait :
+alter table public.releves drop column if exists photo;
 drop policy if exists "photos lecture" on storage.objects;
 drop policy if exists "photos ajout"   on storage.objects;
 drop policy if exists "photos suppr"   on storage.objects;
-create policy "photos lecture" on storage.objects for select to anon, authenticated
-  using (bucket_id = 'photos');
-create policy "photos ajout" on storage.objects for insert to authenticated
-  with check (bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text);
-create policy "photos suppr" on storage.objects for delete to authenticated
-  using (bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text);

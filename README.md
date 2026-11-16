@@ -9,12 +9,13 @@ Pour consommer mieux, il faut d'abord mesurer, puis partager les données.
 
 | Élément | Rôle |
 |---|---|
-| `index.html` + `config.js` | Le site (GitHub Pages) : graphiques publics, connexion, ajout de relevés avec photo |
-| Supabase | Base de données, comptes, stockage des photos (offre gratuite) |
+| `index.html` + `config.js` | Le site (GitHub Pages) : graphiques publics, connexion, saisie d'un relevé par photo ou à la main |
+| Supabase | Base de données et comptes (offre gratuite) |
+| `supabase/functions/lire-photo` | Fonction Supabase : envoie la photo à Claude (API Anthropic) et renvoie les valeurs lues |
 | `supabase/schema.sql` | Tables et règles d'accès : lecture publique, chacun n'écrit que ses lignes |
 | `collecteur/claude_usage.py` | Script sur l'ordi : relève les jauges Claude toutes les 30 min et les envoie |
 
-Les photos sont réduites (≈1600 px) et ré-encodées dans le navigateur avant l'envoi, ce qui retire leurs métadonnées (dont la position GPS).
+Les photos sont réduites (1568 px) et ré-encodées dans le navigateur, ce qui retire leurs métadonnées (dont la position GPS), puis lues par Claude et **jamais enregistrées**. Seuls les chiffres validés sont stockés.
 
 ## Mise en place (une seule fois)
 
@@ -27,10 +28,17 @@ Les photos sont réduites (≈1600 px) et ré-encodées dans le navigateur avant
    - **Project URL** et clé **publishable** (ou *anon public*) : bouton **Connect** ou **Project Settings → API**. Jamais la clé *secret* / *service_role*.
    - ton **User UID** : Authentication → Users.
 
-### 2. Le site
+### 2. La lecture des photos (facultatif)
+1. Créer une clé API sur https://platform.claude.com (paiement à l'usage, **distinct de l'abonnement Claude**) et y mettre quelques euros de crédit.
+2. Supabase → **Edge Functions → Secrets** : ajouter `ANTHROPIC_API_KEY` avec cette clé.
+3. **Edge Functions → Deploy a new function → Via Editor** : nom `lire-photo`, coller `supabase/functions/lire-photo/index.ts`, **Deploy**.
+
+La fonction n'accepte que les comptes connectés. Coût indicatif : environ 1 centime par photo avec Claude Opus 5.5 (constante `MODELE` en haut du fichier ; Claude Haiku 5.5 coûte environ 40 fois moins).
+
+### 3. Le site
 Mettre ces trois valeurs dans `config.js` (elles ne sont pas secrètes), puis activer GitHub Pages : Settings → Pages → *Deploy from a branch* → `main` / `(root)`.
 
-### 3. Le collecteur Claude (Windows)
+### 4. Le collecteur Claude (Windows)
 Prérequis : Python (python.org, cocher *Add to PATH*) et **Claude Code en ligne de commande** connecté une fois.
 L'appli de bureau Claude ne laisse pas son jeton lisible : c'est la commande `claude` qui écrit `%USERPROFILE%\.claude\.credentials.json`. Le collecteur renouvelle ensuite ce jeton tout seul.
 

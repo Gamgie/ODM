@@ -15,4 +15,4 @@ Site statique (`index.html`, GitHub Pages depuis `main`) relié à Supabase. Voi
 | `carburant` | compteur kilométrique | `litres`, `euros`, `plein_complet` (L/100 calculé entre deux pleins complets), `lieu` |
 | `gaz` | — | `euros`, `kg` ; une ligne = une nouvelle bonbonne |
 
-Photos : bucket public `photos`, chemin `<user_id>/<date>-<categorie>-<horodatage>.jpg`, référencé dans `releves.photo`.
+Photos : jamais stockées. Le navigateur les réduit et les envoie à la fonction `supabase/functions/lire-photo` (Deno, SDK Anthropic, sortie JSON validée par Zod), qui renvoie les valeurs lues ; l'utilisateur vérifie avant d'enregistrer.
