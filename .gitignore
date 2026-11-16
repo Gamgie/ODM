@@ -1,3 +1,4 @@
 collecteur/log.txt
 collecteur/config.json
 __pycache__/
+.derniere-requete.json
