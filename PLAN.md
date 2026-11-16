@@ -25,7 +25,18 @@ Repère : l'empreinte moyenne d'un Français est d'environ 8 à 9 t CO₂e/an ; 
 | **Google (Gemini)** | 0,03 g CO₂e par requête médiane (inférence seule, méthode market-based) | Ordre de grandeur bas |
 | **EcoLogits** (GenAI Impact) | Estimation par tokens et taille de modèle, avec incertitude | Méthode de calcul de l'IA par tokens |
 
-À voir : le simulateur d'**Alex Andrix** (URL à fournir).
+### Les « Indicateurs de sobriété » d'Alex Andrix ([alexandrix.com/fr/about](https://alexandrix.com/fr/about))
+
+Un total en tête (**107,26 kg éqCO₂ / semaine**, moyenne hebdomadaire 2026, mise à jour le 16/11/2026), un anneau par poste au survol, puis 17 indicateurs avec leur quantité hebdomadaire : énergie (2,81 kWh), WiFi, 5G, eau froide et chaude, essence (11,9 L), kérosène (15,8 L), trajets en train (1,25 kg, chiffre SNCF), requêtes IA (moteur, Copilot, Gemini), **tokens Claude en entrée (1,99 M) et en sortie (3,66 k)**, logiciels produits, données cloud et locales.
+
+Les données viennent d'un fichier public, [`carbon-metrics-latest-data.json`](https://alexandrix.com/data/carbon-metrics-latest-data.json) : pour chaque indicateur, la moyenne hebdomadaire, le facteur (kg CO₂e par unité), sa source et le résultat.
+
+| On reprend | On fait autrement |
+|---|---|
+| Le **total en tête**, l'anneau par poste, la page d'indicateurs lisible | Beaucoup de facteurs sont sourcés « Google Gemini 2026 » (valeurs demandées à une IA) : ODM part des sources primaires (ADEME en priorité) |
+| La **publication ouverte en JSON**, facteur et source à côté de chaque valeur : ODM publiera un fichier au **même format**, pour comparer nos données entre amis | Son périmètre est l'usage (« sobriété ») : ni alimentation, ni achats, ni fabrication des appareils, ni services publics. 107 kg/semaine ≈ 5,6 t/an, dont 97 % viennent de l'essence et du kérosène |
+| Le **comptage de l'IA en tokens** et ses facteurs Claude (Jegham et al. 2025, § 5) | Une fourchette plutôt qu'une valeur unique, l'IA étant très incertaine |
+| Le kérosène avec forçage radiatif (effets hors CO₂ en altitude) | Avion saisi en trajets (origine–destination) plutôt qu'en litres |
 
 ## 3. Ce qui manque à ODM aujourd'hui
 
@@ -61,6 +72,7 @@ CO₂e ≈ tokens × énergie par token (selon taille de modèle) × PUE du data
 
 - **Tokens** : exacts pour Claude Code (les journaux locaux `~/.claude/projects/*.jsonl` contiennent l'usage par requête ; le collecteur peut les additionner). Pour l'appli et le web, seule la jauge en % est connue : conversion en tokens **très incertaine**, affichée comme fourchette.
 - **Énergie par token** : méthode EcoLogits ; bornes basse (Google, 0,03 g/requête) et haute (Mistral, ~1,1 g/400 tokens) pour situer le résultat.
+- **Facteurs par token utilisés par Alex Andrix** : 1,95 × 10⁻⁷ kg CO₂e par token d'entrée et 4,13 × 10⁻⁶ par token de sortie. Ils viennent de Jegham et al. 2025 (arXiv:2505.09598), mesures sur Claude 3.7 Sonnet chez AWS, PUE compris, multipliées par 5 pour Opus, hypothèse pessimiste (sans cache). À vérifier dans l'article et à comparer aux autres bornes.
 - Ajouter la **fabrication des appareils** (laptop, desktop, téléphone) amortie sur leur durée de vie : souvent bien plus que l'usage.
 
 ## 6. Saisie et collecte
@@ -89,7 +101,7 @@ Chaque phase se termine par une condition vérifiable, utilisable telle quelle a
 | Phase | Contenu | Condition de fin (pour `/goal`) | Besoin de toi |
 |---|---|---|---|
 | **0. Autonomie** | Accès pour que je déploie seul | Je peux lancer une migration SQL et déployer la fonction photo depuis la session | Un jeton d'accès Supabase (Account → Access Tokens), saisi via le formulaire sécurisé — jamais dans le chat |
-| **1. Facteurs et CO₂e** | Table `facteurs` (Base Empreinte), calcul CO₂e des relevés existants : électricité, gazole, gaz en bouteille | Le site affiche les kg CO₂e par poste pour les données existantes, chaque chiffre lié à sa source ; tests de calcul passés | Valider les facteurs retenus |
+| **1. Facteurs et CO₂e** | Table `facteurs` (Base Empreinte), calcul CO₂e des relevés existants : électricité, gazole, gaz en bouteille ; total en tête et anneau par poste ; export JSON public au format d'Alex Andrix | Le site affiche les kg CO₂e par poste pour les données existantes, chaque chiffre lié à sa source ; le JSON public a la même structure que `carbon-metrics-latest-data.json` ; tests de calcul passés | Valider les facteurs retenus |
 | **2. Bilan complet de base** | Questionnaire (modèle Nos Gestes Climat), forfait services publics, page bilan annuel avec comparaison à la moyenne | Total annuel et répartition par poste affichés après questionnaire ; écart < 10 % avec Nos Gestes Climat sur 2 profils de test | Remplir le questionnaire |
 | **3. Transports** | Trajets avion/train/voiture (origine–destination ou distance), API Impact CO2 ou facteurs ADEME | Ajout d'un trajet Lyon–Paris en train et en avion, CO₂e conforme à impactco2.fr | Clé API Impact CO2 (si utilisée) |
 | **4. IA et numérique** | Tokens Claude Code par le collecteur, conversion jauges → fourchette, appareils amortis | Bilan « numérique et IA » avec fourchette basse/haute et méthode documentée | Liste de tes appareils (modèle, année) |
@@ -105,13 +117,14 @@ Chaque phase se termine par une condition vérifiable, utilisable telle quelle a
 
 ## 10. Questions ouvertes
 
-1. URL du site d'Alex Andrix.
-2. Ton site perso : adresse, technologie (WordPress, statique…), et où tu veux ODM (sous-domaine, page).
-3. Logement : surface, mode de chauffage (électrique, bois, gaz en bouteille pour quoi : cuisson ? chauffage ?).
-4. Autres véhicules, et fréquence des trajets en train / avion.
-5. Ordre des phases : commencer par 1 (CO₂e de l'existant) puis 2 (bilan complet) ?
+1. Ton site perso : adresse, technologie (WordPress, statique…), et où tu veux ODM (sous-domaine, page).
+2. Logement : surface, mode de chauffage (électrique, bois, gaz en bouteille pour quoi : cuisson ? chauffage ?).
+3. Autres véhicules, et fréquence des trajets en train / avion.
+4. Ordre des phases : commencer par 1 (CO₂e de l'existant) puis 2 (bilan complet) ?
 
 ## Sources
+
+- [Alex Andrix — indicateurs de sobriété](https://alexandrix.com/fr/about), [données JSON](https://alexandrix.com/data/carbon-metrics-latest-data.json), [Jegham et al. 2025](https://arxiv.org/abs/2505.09598)
 
 - [Nos Gestes Climat — à propos](https://nosgestesclimat.fr/en/a-propos), [empreinte carbone](https://nosgestesclimat.fr/empreinte-climat)
 - [Carbone 4 — MyCO2](https://www.carbone4.com/en/myco2), [méthodologie de l'empreinte moyenne](https://www.carbone4.com/en/press-releases/communicate-myco2-average-footprint-trends-methodology)
