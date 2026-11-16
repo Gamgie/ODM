@@ -12,7 +12,7 @@ Pour consommer mieux, il faut d'abord mesurer, puis partager les données.
 
 ```bash
 git clone https://github.com/Gamgie/ODM.git ~/ODM
-python3 collecteur/claude_usage.py --no-git           # test : doit afficher « Relevé : [...] »
+cd ~/ODM && python3 collecteur/claude_usage.py --no-git          # test : doit afficher « Relevé : [...] »
 ```
 
 Puis lancer automatiquement toutes les 30 minutes : `crontab -e` et ajouter
