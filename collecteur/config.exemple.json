@@ -1,0 +1,5 @@
+{
+  "supabase_url": "https://VOTRE-PROJET.supabase.co",
+  "supabase_key": "CLÉ PUBLISHABLE (ou anon) DU PROJET",
+  "cle_collecteur": "CLÉ GÉNÉRÉE DEPUIS LE SITE (Mon compte → Clé du collecteur)"
+}

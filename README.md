@@ -1,25 +1,55 @@
 # Mes consommations
 
-Tracker public et open data de mes consommations : jauges Claude (session 5 h et semaine), électricité, carburant (Renault Trafic 2012) et gaz.
+Tracker public et open data de consommations : jauges Claude (session 5 h et semaine), électricité, carburant et gaz.
 Pour consommer mieux, il faut d'abord mesurer, puis partager les données.
 
-- **Le site** : `index.html` (GitHub Pages), lisible sur téléphone et ordi.
-- **Les données** : fichiers CSV dans `data/`, réutilisables librement.
-- **La saisie** : je le dis à Claude (« plein de 130 €, 72 L, 182 340 km »), qui ajoute la ligne. Les consignes sont dans `CLAUDE.md`.
-- **Le collecteur Claude** : `collecteur/claude_usage.py` relève toutes les 30 min les deux jauges d'usage et les pousse dans `data/claude.csv`.
+**Site :** https://gamgie.github.io/ODM/
 
-## Installer le collecteur (sur l'ordi où Claude Code est connecté)
+## Architecture
 
-```bash
-git clone https://github.com/Gamgie/ODM.git ~/ODM
-cd ~/ODM && python3 collecteur/claude_usage.py --no-git          # test : doit afficher « Relevé : [...] »
+| Élément | Rôle |
+|---|---|
+| `index.html` + `config.js` | Le site (GitHub Pages) : graphiques publics, connexion, ajout de relevés avec photo |
+| Supabase | Base de données, comptes, stockage des photos (offre gratuite) |
+| `supabase/schema.sql` | Tables et règles d'accès : lecture publique, chacun n'écrit que ses lignes |
+| `collecteur/claude_usage.py` | Script sur l'ordi : relève les jauges Claude toutes les 30 min et les envoie |
+
+Les photos sont réduites (≈1600 px) et ré-encodées dans le navigateur avant l'envoi, ce qui retire leurs métadonnées (dont la position GPS).
+
+## Mise en place (une seule fois)
+
+### 1. Supabase
+1. Créer un compte sur https://supabase.com puis **New project** (région Europe, mot de passe de base au choix).
+2. **SQL Editor** → coller tout `supabase/schema.sql` → **Run**.
+3. **Authentication → Users → Add user → Create new user** : ton e-mail et un mot de passe, cocher *Auto Confirm User*.
+4. (Facultatif) **SQL Editor** → coller `supabase/import_releves_initiaux.sql` → **Run** pour reprendre les premiers relevés.
+5. Noter trois valeurs :
+   - **Project URL** et clé **publishable** (ou *anon public*) : bouton **Connect** ou **Project Settings → API**. Jamais la clé *secret* / *service_role*.
+   - ton **User UID** : Authentication → Users.
+
+### 2. Le site
+Mettre ces trois valeurs dans `config.js` (elles ne sont pas secrètes), puis activer GitHub Pages : Settings → Pages → *Deploy from a branch* → `main` / `(root)`.
+
+### 3. Le collecteur Claude (Windows)
+Prérequis : Python (python.org, cocher *Add to PATH*) et Claude Code connecté sur l'ordi.
+
+```powershell
+git clone https://github.com/Gamgie/ODM.git $HOME\ODM
+py $HOME\ODM\collecteur\claude_usage.py --test     # doit afficher « Relevé (non envoyé) : ... »
+copy $HOME\ODM\collecteur\config.exemple.json $HOME\ODM\collecteur\config.json
+notepad $HOME\ODM\collecteur\config.json           # URL, clé publishable, clé collecteur (site → Mon compte)
+py $HOME\ODM\collecteur\claude_usage.py            # doit afficher « OK 5h=... »
+schtasks /Create /SC MINUTE /MO 30 /TN "ODM collecteur" /TR "pyw $HOME\ODM\collecteur\claude_usage.py"
 ```
 
-Puis lancer automatiquement toutes les 30 minutes : `crontab -e` et ajouter
+Journal : `collecteur\log.txt`. Arrêter : `schtasks /Delete /TN "ODM collecteur"`.
+Sur macOS ou Linux, même script, lancé par `cron` ou `launchd`.
 
-```
-*/30 * * * * cd ~/ODM && /usr/bin/python3 collecteur/claude_usage.py >> ~/ODM/collecteur/log.txt 2>&1
-```
+L'endpoint `api.anthropic.com/api/oauth/usage` n'est **pas documenté** par Anthropic et peut changer. Il n'appelle aucun modèle : le collecteur ne consomme pas de crédit.
 
-Il faut que `git push` marche sans mot de passe depuis ce dossier (clé SSH ou gestionnaire d'identifiants).
-Le script lit le jeton de Claude Code (Trousseau macOS ou `~/.claude/.credentials.json`) et interroge `api.anthropic.com/api/oauth/usage`, un endpoint **non documenté** qui peut changer. Il n'appelle aucun modèle, donc ne consomme pas de crédit.
+## À venir
+- Création de compte et gestion de compte par utilisateur, page publique par pseudo.
+- Comparaison entre utilisateurs.
+
+## Contribuer
+Chaque évolution passe par une branche et une pull request vers `main`.
