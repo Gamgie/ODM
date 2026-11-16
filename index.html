@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js"></script>
+<script src="config.js?v=3"></script>
 <style>
 :root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1b;--mute:#6b6a65;--line:#e4e2db;--bad:#b91c1c;
   --c1:#c2410c;--c2:#1d4ed8;--c3:#15803d;--c4:#7c3aed}
@@ -385,7 +385,10 @@ async function compresser(file) {
   const s = Math.min(1, 1568 / Math.max(img.width, img.height));
   const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
   c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-  return c.toDataURL("image/jpeg", 0.8);
+  // Reste sous ~350 Ko pour l'envoi : on baisse la qualité JPEG si besoin.
+  let url, q = 0.8;
+  do { url = c.toDataURL("image/jpeg", q); q -= 0.15; } while (url.length > 350000 && q > 0.3);
+  return url;
 }
 
 // Remplit les champs avec ce que Claude a lu ; une valeur nulle ne remplace rien (une 2e photo complète la 1re).
@@ -408,7 +411,8 @@ $("a-photo").onchange = async () => {
     const {data, error} = await sb.functions.invoke(CFG.fonction_photo || "lire-photo", {body: {image}});
     if (error) {
       let detail = error.message;
-      try { detail = (await error.context.json()).erreur || detail; } catch {}
+      try { const j = await error.context.json(); detail = j.erreur || j.message || detail; } catch {}
+      if (error.name === "FunctionsFetchError") detail += " (fonction injoignable : vérifier son nom dans config.js et sa réponse aux appels du site)";
       throw new Error(detail);
     }
     if (data.lecture.categorie === "inconnu") setMsg("lecture-msg", "Rien de reconnu sur la photo. " + (data.lecture.remarque || ""), true);
