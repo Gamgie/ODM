@@ -39,22 +39,16 @@ La fonction n'accepte que les comptes connectés. Coût indicatif : environ 1 ce
 Mettre ces trois valeurs dans `config.js` (elles ne sont pas secrètes), puis activer GitHub Pages : Settings → Pages → *Deploy from a branch* → `main` / `(root)`.
 
 ### 4. Le collecteur Claude (Windows)
-Prérequis : Python (python.org, cocher *Add to PATH*) et **Claude Code en ligne de commande** connecté une fois.
-L'appli de bureau Claude ne laisse pas son jeton lisible : c'est la commande `claude` qui écrit `%USERPROFILE%\.claude\.credentials.json`. Le collecteur renouvelle ensuite ce jeton tout seul.
+Sur le site, connecté : **Mon compte → Installer sur Windows**, puis double-clic sur `installer-odm.cmd`.
+Le fichier lance `collecteur/installer.ps1`, qui :
+1. installe Python si besoin (winget) ;
+2. télécharge le collecteur dans `%LOCALAPPDATA%\ODM` avec sa configuration ;
+3. installe Claude Code en ligne de commande et ouvre la connexion si besoin (l'appli de bureau ne laisse pas son jeton lisible) ;
+4. envoie un premier relevé ;
+5. crée la tâche planifiée « ODM collecteur » toutes les 30 min, **autorisée sur batterie** (Windows bloque sinon les tâches d'un portable débranché).
 
-```powershell
-irm https://claude.ai/install.ps1 | iex             # installe Claude Code en ligne de commande
-claude                                             # nouvelle fenêtre PowerShell ; se connecter avec son compte Claude, puis /exit
-git clone https://github.com/Gamgie/ODM.git $HOME\ODM
-py $HOME\ODM\collecteur\claude_usage.py --test     # doit afficher « Relevé (non envoyé) : ... »
-copy $HOME\ODM\collecteur\config.exemple.json $HOME\ODM\collecteur\config.json
-notepad $HOME\ODM\collecteur\config.json           # URL, clé publishable, clé collecteur (site → Mon compte)
-py $HOME\ODM\collecteur\claude_usage.py            # doit afficher « OK 5h=... »
-schtasks /Create /SC MINUTE /MO 30 /TN "ODM collecteur" /TR "pyw $HOME\ODM\collecteur\claude_usage.py"
-```
-
-Journal : `collecteur\log.txt`. Arrêter : `schtasks /Delete /TN "ODM collecteur"`.
-Sur macOS ou Linux, même script, lancé par `cron` ou `launchd`.
+Relancer le fichier met tout à jour. Journal : `%LOCALAPPDATA%\ODM\log.txt`. Arrêter : `Unregister-ScheduledTask -TaskName "ODM collecteur"`.
+Sur macOS ou Linux : `claude_usage.py` + `config.json` (clé : Mon compte → Autre système), lancé par `cron` ou `launchd`.
 
 L'endpoint `api.anthropic.com/api/oauth/usage` n'est **pas documenté** par Anthropic et peut changer. Il n'appelle aucun modèle : le collecteur ne consomme pas de crédit.
 

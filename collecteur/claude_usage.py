@@ -39,7 +39,7 @@ CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 def lire_jeton():
     # Windows et Linux : fichier écrit par Claude Code en ligne de commande ; macOS : Trousseau
     if FICHIER_ID.exists():
-        ids = json.loads(FICHIER_ID.read_text(encoding="utf-8"))
+        ids = json.loads(FICHIER_ID.read_text(encoding="utf-8-sig"))
         oauth = ids["claudeAiOauth"]
         # Jeton expiré (ou presque) : on le renouvelle et on réécrit le fichier,
         # car l'ancien jeton de renouvellement n'est plus valable ensuite.
@@ -86,7 +86,7 @@ def main():
         print("Relevé (non envoyé) :", releve)
         return
 
-    cfg = json.loads((ICI / "config.json").read_text(encoding="utf-8"))
+    cfg = json.loads((ICI / "config.json").read_text(encoding="utf-8-sig"))
     url = cfg["supabase_url"].rstrip("/") + "/rest/v1/rpc/ajouter_releve_claude"
     try:
         requete(url, {"apikey": cfg["supabase_key"], "Content-Type": "application/json"},
