@@ -1,6 +1,6 @@
 # Tracker de consommations — notes pour Claude
 
-Site statique (`index.html`, GitHub Pages depuis `main`) relié à Supabase. Voir `README.md` pour l'architecture et la mise en place.
+Site statique (`index.html`) publié sur **https://odm.gamgie.com** (Vercel, à chaque push sur `main` ; GitHub Pages reste un miroir) et relié à Supabase. Voir `README.md` pour l'architecture et la mise en place.
 
 - Pas de build, pas de framework : HTML + JS vanilla, Chart.js et supabase-js chargés depuis un CDN avec version figée.
 - Interface et textes en français.

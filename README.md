@@ -3,7 +3,7 @@
 Tracker public et open data de consommations : jauges Claude (session 5 h et semaine), électricité, carburant et gaz.
 Pour consommer mieux, il faut d'abord mesurer, puis partager les données.
 
-**Site :** https://gamgie.github.io/ODM/
+**Site :** https://odm.gamgie.com (Vercel, déployé à chaque push sur `main`)
 
 ## Architecture
 

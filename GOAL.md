@@ -6,7 +6,7 @@ Une phase à la fois (voir `PLAN.md` § 8). Chaque tour de `/goal` consomme la j
 - [x] Environnement cloud **ODM** avec accès Supabase et Vercel (voir `CLAUDE.md` § Accès)
 - [x] Tests automatiques dans `tests/` (site, base, fonction photo)
 - [x] Projet Vercel `odm` + domaine `odm.gamgie.com` ajouté
-- [ ] Enregistrement DNS chez Wix : CNAME `odm` → `1fd4d6bac5e7c5c5.vercel-dns-017.com`
+- [x] Enregistrement DNS chez Wix : CNAME `odm` → `1fd4d6bac5e7c5c5.vercel-dns-017.com` — https://odm.gamgie.com en ligne (16/11)
 - [ ] Forme d'achat du bois (stères, granulés…) et rythme — utile en phase 1 ou 2
 
 ## Commandes prêtes à coller
