@@ -12,7 +12,6 @@ Pour consommer mieux, il faut d'abord mesurer, puis partager les données.
 
 ```bash
 git clone https://github.com/Gamgie/ODM.git ~/ODM
-cd ~/ODM && git checkout claude/focused-newton-lhmqv7   # ou main une fois fusionné
 python3 collecteur/claude_usage.py --no-git           # test : doit afficher « Relevé : [...] »
 ```
 
