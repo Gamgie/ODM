@@ -61,6 +61,10 @@ form .check input{width:auto}
 .msg{font-size:.88rem;margin:10px 0 0;min-height:1.2em}
 .msg.err{color:var(--bad)}
 #preview{max-width:100%;max-height:120px;border-radius:8px;margin-top:8px;display:none}
+#crop{display:block;margin:0 auto;touch-action:none;border-radius:8px;background:#000;cursor:crosshair}
+.crop-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.crop-actions .btn{flex:1}
+.btn:disabled{opacity:.45}
 .photo-btn{display:block!important;text-align:center;font-size:1.05rem;padding:12px;color:var(--card)!important;margin:0!important}
 .photo-btn[aria-busy="true"]{opacity:.6;pointer-events:none}
 code.key{display:block;word-break:break-all;background:var(--bg);padding:8px;border-radius:8px;font-size:.8rem;margin:8px 0}
@@ -109,7 +113,7 @@ footer{color:var(--mute);font-size:.82rem}
     <div class="scroll"><table id="gaz-table"></table></div>
   </section>
 
-  <footer>Code et méthode : <a href="https://github.com/Gamgie/ODM" style="color:inherit">github.com/Gamgie/ODM</a></footer>
+  <footer>Version 5 · Code et méthode : <a href="https://github.com/Gamgie/ODM" style="color:inherit">github.com/Gamgie/ODM</a></footer>
 </main>
 
 <button class="btn main" id="fab" hidden>+ Relevé</button>
@@ -143,10 +147,19 @@ footer{color:var(--mute);font-size:.82rem}
 <dialog id="dlg-add">
   <form id="f-add">
     <h3>Nouveau relevé</h3>
-    <label class="btn main photo-btn" for="a-photo">📷 Lire une photo</label>
+    <label class="btn main photo-btn" for="a-photo">📷 Prendre une photo</label>
     <input id="a-photo" type="file" accept="image/*" hidden>
     <p class="sub" style="font-size:.82rem;margin:6px 0 0">Compteur, ticket ou pompe : Claude remplit les champs, tu vérifies. Une 2<sup>e</sup> photo (ex. le compteur kilométrique) complète la première. Les photos ne sont pas conservées.</p>
-    <img id="preview" alt="Aperçu de la photo">
+    <div id="cadrage" hidden>
+      <p class="sub" style="font-size:.82rem;margin:10px 0 6px"><b>Encadre l'afficheur</b> en glissant le doigt, et tourne la photo pour que les chiffres soient à l'endroit.</p>
+      <canvas id="crop"></canvas>
+      <div class="crop-actions">
+        <button type="button" class="btn" id="crop-rot">↻ Tourner</button>
+        <button type="button" class="btn" id="crop-tout">Toute la photo</button>
+      </div>
+      <div class="crop-actions"><button type="button" class="btn main" id="crop-ok" disabled>Lire la zone encadrée</button></div>
+    </div>
+    <img id="preview" alt="Image envoyée à Claude">
     <p class="msg" id="lecture-msg"></p>
     <label for="a-cat">Quoi ?</label>
     <select id="a-cat">
@@ -376,19 +389,53 @@ function majCat() { document.querySelectorAll("#f-add [data-cat]").forEach(d => 
 $("a-cat").onchange = majCat;
 const setMsg = (id, txt, err) => { $(id).textContent = txt; $(id).className = "msg" + (err ? " err" : ""); };
 $("fab").onclick = () => {
-  $("f-add").reset(); $("preview").style.display = "none"; $("a-date").value = new Date().toLocaleDateString("sv");
+  $("f-add").reset(); $("preview").style.display = "none"; $("cadrage").hidden = true; bmp = null; $("a-date").value = new Date().toLocaleDateString("sv");
   setMsg("add-msg", ""); setMsg("lecture-msg", ""); majCat(); $("dlg-add").showModal();
 };
 
-// Réduit la photo (1568 px max, taille utile pour Claude) en JPEG ; le ré-encodage supprime les métadonnées (dont la position GPS).
-async function compresser(file) {
-  const img = await createImageBitmap(file, {imageOrientation: "from-image"});
-  const s = Math.min(1, 1568 / Math.max(img.width, img.height));
-  const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+// ---------- Cadrage de la photo ----------
+// La zone est découpée dans la photo en pleine résolution, puis réduite à 1568 px max :
+// un petit afficheur garde ainsi tous ses détails. Le ré-encodage JPEG supprime les métadonnées (dont la position GPS).
+let bmp = null, rot = 0, sel = null, drag = null;
+const cv = $("crop");
+const zoneOk = () => sel && sel.w > 0.03 && sel.h > 0.03;
+function dims() { const r = rot % 180 !== 0; return {w: r ? bmp.height : bmp.width, h: r ? bmp.width : bmp.height}; }
+function dessinerTourne(ctx, W, H) {
+  const r = rot % 180 !== 0, dw = r ? H : W, dh = r ? W : H;
+  ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(rot * Math.PI / 180);
+  ctx.drawImage(bmp, -dw / 2, -dh / 2, dw, dh); ctx.restore();
+}
+function afficherCadrage() {
+  const {w, h} = dims(), dpr = devicePixelRatio || 1;
+  const s = Math.min(($("cadrage").clientWidth || 340) / w, innerHeight * 0.45 / h);
+  cv.style.width = Math.round(w * s) + "px"; cv.style.height = Math.round(h * s) + "px";
+  cv.width = Math.round(w * s * dpr); cv.height = Math.round(h * s * dpr);
+  const ctx = cv.getContext("2d"); dessinerTourne(ctx, cv.width, cv.height);
+  if (zoneOk()) {
+    const W = cv.width, H = cv.height, x = sel.x * W, y = sel.y * H, ww = sel.w * W, hh = sel.h * H;
+    ctx.fillStyle = "rgba(0,0,0,.55)";
+    ctx.fillRect(0, 0, W, y); ctx.fillRect(0, y + hh, W, H - y - hh); ctx.fillRect(0, y, x, hh); ctx.fillRect(x + ww, y, W - x - ww, hh);
+    ctx.strokeStyle = "#fb923c"; ctx.lineWidth = 2 * dpr; ctx.strokeRect(x, y, ww, hh);
+  }
+  $("crop-ok").disabled = !zoneOk();
+}
+const posCrop = e => { const r = cv.getBoundingClientRect(); return {x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))}; };
+cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); drag = posCrop(e); sel = null; afficherCadrage(); });
+cv.addEventListener("pointermove", e => { if (!drag) return; const p = posCrop(e); sel = {x: Math.min(drag.x, p.x), y: Math.min(drag.y, p.y), w: Math.abs(p.x - drag.x), h: Math.abs(p.y - drag.y)}; afficherCadrage(); });
+["pointerup", "pointercancel"].forEach(t => cv.addEventListener(t, () => drag = null));
+$("crop-rot").onclick = () => { rot = (rot + 90) % 360; sel = null; afficherCadrage(); };
+
+function exporter(zone) {
+  const {w, h} = dims(), z = zone || {x: 0, y: 0, w: 1, h: 1};
+  const s = Math.min(1, 1568 / Math.max(z.w * w, z.h * h));
+  const out = document.createElement("canvas");
+  out.width = Math.max(1, Math.round(z.w * w * s)); out.height = Math.max(1, Math.round(z.h * h * s));
+  const ctx = out.getContext("2d");
+  ctx.translate(-z.x * w * s, -z.y * h * s);
+  dessinerTourne(ctx, w * s, h * s);
   // Reste sous ~350 Ko pour l'envoi : on baisse la qualité JPEG si besoin.
-  let url, q = 0.8;
-  do { url = c.toDataURL("image/jpeg", q); q -= 0.15; } while (url.length > 350000 && q > 0.3);
+  let url, q = 0.85;
+  do { url = out.toDataURL("image/jpeg", q); q -= 0.15; } while (url.length > 350000 && q > 0.3);
   return url;
 }
 
@@ -414,11 +461,21 @@ function remplir(l) {
 
 $("a-photo").onchange = async () => {
   const f = $("a-photo").files[0]; if (!f) return;
-  const btn = document.querySelector(".photo-btn");
-  btn.setAttribute("aria-busy", "true"); btn.textContent = "⏳ Lecture en cours…"; setMsg("lecture-msg", "");
   try {
-    const image = await compresser(f);
-    $("preview").src = image; $("preview").style.display = "block";
+    bmp = await createImageBitmap(f, {imageOrientation: "from-image"});
+    rot = 0; sel = null; $("cadrage").hidden = false; $("preview").style.display = "none"; setMsg("lecture-msg", "");
+    afficherCadrage(); $("cadrage").scrollIntoView({block: "nearest"});
+  } catch { setMsg("lecture-msg", "Photo illisible.", true); }
+  finally { $("a-photo").value = ""; }
+};
+$("crop-ok").onclick = () => lire(exporter(sel));
+$("crop-tout").onclick = () => lire(exporter(null));
+
+async function lire(image) {
+  const boutons = ["crop-ok", "crop-tout", "crop-rot"].map($);
+  boutons.forEach(b => b.disabled = true); $("crop-ok").textContent = "⏳ Lecture en cours…"; setMsg("lecture-msg", "");
+  $("preview").src = image; $("preview").style.display = "block";
+  try {
     const {data, error} = await sb.functions.invoke(CFG.fonction_photo || "lire-photo", {body: {image, contexte: contexteLecture()}});
     if (error) {
       let detail = error.message;
@@ -426,11 +483,13 @@ $("a-photo").onchange = async () => {
       if (error.name === "FunctionsFetchError") detail += " (fonction injoignable : vérifier son nom dans config.js et sa réponse aux appels du site)";
       throw new Error(detail);
     }
-    if (data.lecture.categorie === "inconnu") setMsg("lecture-msg", "Rien de reconnu sur la photo. " + (data.lecture.remarque || ""), true);
+    if (data.lecture.categorie === "inconnu") setMsg("lecture-msg", "Rien de reconnu. " + (data.lecture.remarque || ""), true);
     else { remplir(data.lecture); setMsg("lecture-msg", "✓ Lu par Claude — vérifie avant d'enregistrer. " + (data.lecture.remarque || "")); }
   } catch (err) { setMsg("lecture-msg", "Lecture impossible : " + err.message, true); }
-  finally { btn.removeAttribute("aria-busy"); btn.textContent = "📷 Lire une photo"; $("a-photo").value = ""; }
-};
+  finally {
+    boutons.forEach(b => b.disabled = false); $("crop-ok").textContent = "Lire la zone encadrée"; $("crop-ok").disabled = !zoneOk();
+  }
+}
 
 $("f-add").onsubmit = async e => {
   e.preventDefault();
