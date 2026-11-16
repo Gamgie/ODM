@@ -263,8 +263,8 @@ function afficherClaude() {
   o.scales.x.ticks.callback = v => short ? new Date(v).toLocaleTimeString("fr-FR", {hour: "2-digit", minute: "2-digit"}) : fdate(v);
   o.plugins.tooltip = {callbacks: {title: i => fdt(i[0].parsed.x)}};
   chart("claude-chart", {type: "line", options: o, data: {datasets: [
-    {label: "Session 5 h", data: pts.map(r => ({x: r.t, y: r.h5})), borderColor: css("--c1"), backgroundColor: css("--c1"), pointRadius: 0, borderWidth: 2},
-    {label: "Semaine", data: pts.map(r => ({x: r.t, y: r.s7})), borderColor: css("--c2"), backgroundColor: css("--c2"), pointRadius: 0, borderWidth: 2}]}});
+    {label: "Session 5 h", data: pts.map(r => ({x: r.t, y: r.h5})), borderColor: css("--c1"), backgroundColor: css("--c1"), pointRadius: pts.length < 40 ? 3 : 0, borderWidth: 2},
+    {label: "Semaine", data: pts.map(r => ({x: r.t, y: r.s7})), borderColor: css("--c2"), backgroundColor: css("--c2"), pointRadius: pts.length < 40 ? 3 : 0, borderWidth: 2}]}});
 }
 $("range").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
