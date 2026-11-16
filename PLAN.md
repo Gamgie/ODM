@@ -100,7 +100,7 @@ Chaque phase se termine par une condition vérifiable, utilisable telle quelle a
 
 | Phase | Contenu | Condition de fin (pour `/goal`) | Besoin de toi |
 |---|---|---|---|
-| **0. Autonomie** | Accès pour que je déploie seul | Je peux lancer une migration SQL et déployer la fonction photo depuis la session | Un jeton d'accès Supabase (Account → Access Tokens), saisi via le formulaire sécurisé — jamais dans le chat |
+| **0. Autonomie** ✅ (16/11) | Accès pour que je déploie seul — fait : environnement ODM, jetons Supabase et Vercel, tests dans `tests/` | Je peux lancer une migration SQL et déployer la fonction photo depuis la session | Un jeton d'accès Supabase (Account → Access Tokens), saisi via le formulaire sécurisé — jamais dans le chat |
 | **1. Facteurs et CO₂e** | Table `facteurs` (Base Empreinte), calcul CO₂e des relevés existants : électricité, gazole, gaz en bouteille ; total en tête et anneau par poste ; export JSON public au format d'Alex Andrix | Le site affiche les kg CO₂e par poste pour les données existantes, chaque chiffre lié à sa source ; le JSON public a la même structure que `carbon-metrics-latest-data.json` ; tests de calcul passés | Valider les facteurs retenus |
 | **2. Bilan complet de base** | Questionnaire (modèle Nos Gestes Climat), forfait services publics, page bilan annuel avec comparaison à la moyenne | Total annuel et répartition par poste affichés après questionnaire ; écart < 10 % avec Nos Gestes Climat sur 2 profils de test | Remplir le questionnaire |
 | **3. Transports** | Trajets avion/train/voiture (origine–destination ou distance), API Impact CO2 ou facteurs ADEME | Ajout d'un trajet Lyon–Paris en train et en avion, CO₂e conforme à impactco2.fr | Clé API Impact CO2 (si utilisée) |

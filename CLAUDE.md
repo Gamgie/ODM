@@ -17,3 +17,14 @@ Site statique (`index.html`, GitHub Pages depuis `main`) relié à Supabase. Voi
 | `gaz` | — | `euros`, `kg` ; une ligne = une nouvelle bonbonne |
 
 Photos : jamais stockées. Le navigateur les réduit et les envoie à la fonction `supabase/functions/lire-photo` (Deno, SDK Anthropic, sortie JSON validée par Zod), qui renvoie les valeurs lues ; l'utilisateur vérifie avant d'enregistrer.
+
+## Accès (environnement cloud « ODM »)
+Les sessions sur l'environnement **ODM** ont deux jetons injectés par le proxy (ne jamais les demander ni les écrire) :
+- **Supabase Management API** (`api.supabase.com`) — projet `jwseyltlaeweprwlooib` (région eu-west-3).
+  - SQL : `POST /v1/projects/jwseyltlaeweprwlooib/database/query` avec `{"query": "..."}` — appliquer `supabase/schema.sql` ainsi, après `bash tests/db.test.sh`.
+  - Fonction photo : slug **`dynamic-endpoint`** (nom affiché `lire-photo`), vérification JWT désactivée (la fonction vérifie elle-même la connexion). Secret `ANTHROPIC_API_KEY` en place. Déploiement par l'API à vérifier lors de la première utilisation.
+  - Auth : `site_url` = https://odm.gamgie.com ; **inscription désactivée** jusqu'à la phase « comptes ».
+- **Vercel** (`api.vercel.com`) — équipe `team_chqYdY0oHIbA7UxNPKV1S6e2` (gamgie), projet **`odm`** relié à `Gamgie/ODM`, production = `main`, site statique sans build, domaine `odm.gamgie.com` (DNS chez Wix : CNAME `odm` → `1fd4d6bac5e7c5c5.vercel-dns-017.com`). `*.vercel.app` n'est pas joignable depuis la session : vérifier sur `odm.gamgie.com`.
+- Wix (DNS de gamgie.com) : pas d'accès, modifications faites par Clément.
+
+Avant chaque push : `node tests/ui.test.js`, `bash tests/db.test.sh`, `bash tests/fonction.test.sh` (voir `tests/README.md`).
