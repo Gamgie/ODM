@@ -45,7 +45,7 @@ ODM suit des **quantités** (kWh, litres, %) mais ne calcule **aucune émission*
 | Poste (part typique d'une empreinte française*) | État ODM | À ajouter |
 |---|---|---|
 | **Transports** (~25-30 %) : voiture, avion, train, bus, vélo | Carburant du Trafic seulement | Trajets avion et train (distance ou origine–destination), autres véhicules, covoiturage, conversion litres → CO₂e |
-| **Logement** (~20-25 %) : électricité, chauffage, construction | Électricité (kWh), gaz en bouteille (dates) | Facteurs CO₂e, chauffage (bois, fioul…), surface et part de construction/équipement amortie |
+| **Logement** (~20-25 %) : électricité, chauffage, construction | Électricité (kWh), gaz en bouteille (dates) | Facteurs CO₂e ; **chauffage au bois** (achats en stères, sacs de granulés ou kg : à préciser) ; gaz en bouteille = **cuisson** ; part de construction et d'équipement amortie pour **30 m²** |
 | **Alimentation** (~20-25 %) | Rien | Questionnaire d'habitudes (régime, viande/semaine, local/saison) + saisie optionnelle de repas |
 | **Biens de consommation** (~10-15 %) : vêtements, électronique, mobilier | Rien | Achats ponctuels (objet → facteur), ou dépenses en € par catégorie (ratios monétaires ADEME) |
 | **Numérique et IA** | Jauges Claude en % | Fabrication des appareils amortie, usage, **conversion IA → CO₂e** (§ 5) |
@@ -91,7 +91,7 @@ CO₂e ≈ tokens × énergie par token (selon taille de modèle) × PUE du data
 - **Base** : Supabase (gardé). Nouvelles tables : `activites` (date, poste, sous-poste, quantité, unité, facteur_id, kg CO₂e, source de la donnée), `facteurs`, `profils` (questionnaire, pseudo public). Les `releves` actuels sont convertis en activités (vue ou migration).
 - **Calcul** : fonction SQL ou module JS partagé site / MCP, testé contre des cas connus (Nos Gestes Climat comme témoin).
 - **Front** : HTML/JS sans build (comme aujourd'hui), pages : bilan (camembert par poste, évolution, comparaison à la moyenne), saisie, questionnaire, méthode et sources.
-- **Hébergement** : sortir de `gamgie.github.io/ODM` vers une adresse sur ton site. Le plus simple : un sous-domaine (ex. `conso.tonsite.fr`) pointé vers GitHub Pages (CNAME), rien d'autre à changer ; ou copie des fichiers sur ton hébergement (à décider selon la technologie de ton site).
+- **Hébergement** : comme Ogma. Constat (16/11/2026) : `www.gamgie.com` est servi par **Wix**, `ogma.gamgie.com` par **Vercel**, le sous-domaine étant déclaré dans le DNS géré chez Wix. ODM passe donc sur **`odm.gamgie.com` chez Vercel** : projet Vercel relié au dépôt GitHub (déploiement à chaque push sur `main`, site statique sans build), domaine ajouté dans Vercel, enregistrement DNS ajouté dans Wix. Vercel sert les pages sans cache long côté navigateur : le mécanisme `version.json` reste en filet de sécurité. Le serveur MCP de la phase 5 peut aussi vivre chez Vercel, à côté d'Ogma.
 - **Comptes** : inscription par e-mail, gestion du compte, page publique par pseudo, comparaison entre utilisateurs (reporté de l'étape précédente).
 
 ## 8. Phases
@@ -107,7 +107,7 @@ Chaque phase se termine par une condition vérifiable, utilisable telle quelle a
 | **4. IA et numérique** | Tokens Claude Code par le collecteur, conversion jauges → fourchette, appareils amortis | Bilan « numérique et IA » avec fourchette basse/haute et méthode documentée | Liste de tes appareils (modèle, année) |
 | **5. Saisie par conversation** | Serveur MCP ODM (fonction Supabase), connecteur dans claude.ai | Depuis claude.ai, « j'ai fait un plein de 50 € » crée l'activité et renvoie le CO₂e | Ajouter le connecteur dans claude.ai |
 | **6. Collecte automatique** | Billets dans les courriels (via Ogma), relevé bancaire CSV | Un billet de train reçu par mail apparaît comme activité à valider | Accès choisi (Ogma ou Gmail) |
-| **7. Ton site et les comptes** | Domaine propre, inscription, profils publics, comparaison | Le site répond sur ton domaine ; un 2ᵉ compte de test s'inscrit et ne voit/écrit que ses données | Accès DNS ou hébergement de ton site |
+| **7. odm.gamgie.com et les comptes** | Projet Vercel + domaine (faisable dès maintenant, indépendant des autres phases), inscription, profils publics, comparaison | `https://odm.gamgie.com` sert le site ; un 2ᵉ compte de test s'inscrit et ne voit/écrit que ses données | Créer le projet Vercel depuis le dépôt (ou me donner un jeton Vercel), ajouter l'enregistrement DNS dans Wix, ajouter l'adresse dans les URL autorisées de Supabase |
 
 ## 9. Ce qui reste hors de portée du mode autonome
 
@@ -117,8 +117,8 @@ Chaque phase se termine par une condition vérifiable, utilisable telle quelle a
 
 ## 10. Questions ouvertes
 
-1. Ton site perso : adresse, technologie (WordPress, statique…), et où tu veux ODM (sous-domaine, page).
-2. Logement : surface, mode de chauffage (électrique, bois, gaz en bouteille pour quoi : cuisson ? chauffage ?).
+1. ~~Site perso~~ : `odm.gamgie.com` chez Vercel, comme Ogma (décidé le 16/11).
+2. ~~Logement~~ : 30 m², chauffage au bois, gaz en bouteille pour la cuisson (16/11). Reste : sous quelle forme tu achètes le bois (stères de bûches, sacs de granulés…) et à quel rythme.
 3. Autres véhicules, et fréquence des trajets en train / avion.
 4. Ordre des phases : commencer par 1 (CO₂e de l'existant) puis 2 (bilan complet) ?
 
