@@ -36,14 +36,14 @@ URL_JETON = "https://api.anthropic.com/v1/oauth/token"
 CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 
 
-def lire_jeton():
+def lire_jeton(forcer=False):
     # Windows et Linux : fichier écrit par Claude Code en ligne de commande ; macOS : Trousseau
     if FICHIER_ID.exists():
         ids = json.loads(FICHIER_ID.read_text(encoding="utf-8-sig"))
         oauth = ids["claudeAiOauth"]
         # Jeton expiré (ou presque) : on le renouvelle et on réécrit le fichier,
         # car l'ancien jeton de renouvellement n'est plus valable ensuite.
-        if oauth.get("expiresAt", 0) / 1000 < time.time() + 300 and oauth.get("refreshToken"):
+        if (forcer or oauth.get("expiresAt", 0) / 1000 < time.time() + 300) and oauth.get("refreshToken"):
             t = requete(URL_JETON, {"Content-Type": "application/json"}, {
                 "grant_type": "refresh_token", "refresh_token": oauth["refreshToken"], "client_id": CLIENT_ID})
             oauth["accessToken"] = t["access_token"]
@@ -72,10 +72,19 @@ def requete(url, headers, corps=None):
 
 
 def main():
-    usage = requete("https://api.anthropic.com/api/oauth/usage", {
-        "Authorization": f"Bearer {lire_jeton()}",
-        "anthropic-beta": "oauth-2025-04-20",
-    })
+    url_usage = "https://api.anthropic.com/api/oauth/usage"
+    entetes = lambda jeton: {"Authorization": f"Bearer {jeton}", "anthropic-beta": "oauth-2025-04-20"}
+    try:
+        usage = requete(url_usage, entetes(lire_jeton()))
+    except urllib.error.HTTPError as e:
+        if e.code != 401:
+            raise
+        # Jeton refusé avant sa date d'expiration (révoqué, ou renouvelé ailleurs) : on force un renouvellement.
+        try:
+            usage = requete(url_usage, entetes(lire_jeton(forcer=True)))
+        except urllib.error.HTTPError:
+            log("ERREUR connexion Claude refusée : ouvre un terminal, lance « claude », tape /login, puis /exit")
+            sys.exit(2)
     h5 = usage.get("five_hour") or {}
     s7 = usage.get("seven_day") or {}
     releve = {

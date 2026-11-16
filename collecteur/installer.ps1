@@ -57,11 +57,15 @@ Ok "installé dans $dossier"
 
 # ---------- 3. Claude Code et connexion ----------
 Etape "3/5  Connexion à Claude"
-$confClaude = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME ".claude" }
-$cred = Join-Path $confClaude ".credentials.json"
+# Un vrai essai, pas seulement la présence du fichier : un ancien jeton peut être révoqué.
+function Tester-Connexion {
+  $ancien = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+  try { & $py $script --test *> $null } catch {}
+  $ok = ($LASTEXITCODE -eq 0); $ErrorActionPreference = $ancien; return $ok
+}
 $claude = Join-Path $HOME ".local\bin\claude.exe"
-if (Test-Path $cred) {
-  Ok "déjà connecté"
+if (Tester-Connexion) {
+  Ok "connecté (jauges lues)"
 } else {
   if (-not (Test-Path $claude)) {
     Write-Host "   Installation de Claude Code (ligne de commande)..."
@@ -72,13 +76,14 @@ if (Test-Path $cred) {
   $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
   if ($userPath -notlike "*$binDir*") { [Environment]::SetEnvironmentVariable("Path", "$userPath;$binDir", "User") }
   Write-Host ""
-  Write-Host "   Claude va s'ouvrir dans cette fenêtre." -ForegroundColor Yellow
-  Write-Host "   1. Choisis la connexion avec ton compte Claude (abonnement) et valide dans le navigateur." -ForegroundColor Yellow
-  Write-Host "   2. Quand Claude est prêt, tape  /exit  puis Entrée." -ForegroundColor Yellow
+  Write-Host "   Claude va s'ouvrir dans cette fenêtre pour (re)connecter ton compte." -ForegroundColor Yellow
+  Write-Host "   1. Si Claude ne propose pas la connexion, tape  /login  puis Entrée." -ForegroundColor Yellow
+  Write-Host "   2. Choisis ton compte Claude (abonnement) et valide dans le navigateur." -ForegroundColor Yellow
+  Write-Host "   3. Quand c'est fait, tape  /exit  puis Entrée." -ForegroundColor Yellow
   Read-Host "   Appuie sur Entrée pour continuer"
   & $claude
-  if (-not (Test-Path $cred)) { Stop-Erreur "Connexion non trouvée ($cred). Relance installer-odm.cmd et connecte-toi." }
-  Ok "connecté"
+  if (-not (Tester-Connexion)) { Stop-Erreur "Connexion à Claude toujours refusée. Relance installer-odm.cmd ; dans Claude, tape /login." }
+  Ok "connecté (jauges lues)"
 }
 
 # ---------- 4. Premier relevé ----------
